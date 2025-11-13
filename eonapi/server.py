@@ -46,7 +46,7 @@ async def root():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>eonapi - Energy Consumption Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0/dist/apexcharts.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50">
@@ -166,7 +166,7 @@ async def root():
                         </button>
                     </div>
                     <p v-if="!selectedDay" class="text-gray-600 text-sm mb-4">Click on a bar to see half-hourly breakdown</p>
-                    <canvas id="mainChart"></canvas>
+                    <div id="mainChart"></div>
                 </div>
 
                 <!-- Peak Time Info -->
@@ -196,7 +196,7 @@ async def root():
                         :disabled="loading"
                     >
                         <span v-if="loading">Refreshing...</span>
-                        <span v-else>Refresh Data</span>
+                        <span v-else">Refresh Data</span>
                     </button>
                     <button
                         @click="logout"
@@ -239,8 +239,8 @@ async def root():
             },
             async mounted() {
                 // Log version for debugging
-                console.log('%c🔌 eonapi UI v0.2.0-canvas-replace', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
-                console.log('Build: 2025-11-13 | Canvas replacement strategy');
+                console.log('%c🔌 eonapi UI v0.2.0-apexcharts', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
+                console.log('Build: 2025-11-13 | Fresh start with ApexCharts');
 
                 // Check if we have cached data
                 const cachedData = localStorage.getItem('eonapi_meter_data');
@@ -305,11 +305,7 @@ async def root():
                 logout() {
                     // Destroy chart first
                     if (this.mainChart) {
-                        try {
-                            this.mainChart.destroy();
-                        } catch (e) {
-                            console.warn('Error destroying chart on logout:', e);
-                        }
+                        this.mainChart.destroy();
                         this.mainChart = null;
                     }
 
@@ -350,112 +346,81 @@ async def root():
                 },
 
                 async createDailyChart() {
-                    const barLabels = Object.keys(this.dailyDataMap);
-                    const barData = Object.values(this.dailyDataMap).map(d => d.total);
-
-                    // Destroy chart and remove canvas to kill all event listeners
+                    // Destroy existing chart if any
                     if (this.mainChart) {
-                        try {
-                            this.mainChart.destroy();
-                        } catch (e) {
-                            console.warn('Error destroying chart:', e);
-                        }
+                        this.mainChart.destroy();
                         this.mainChart = null;
                     }
 
-                    // Remove and recreate canvas element to clear all event listeners
-                    const oldCanvas = document.getElementById('mainChart');
-                    if (oldCanvas) {
-                        const parent = oldCanvas.parentNode;
-                        const newCanvas = document.createElement('canvas');
-                        newCanvas.id = 'mainChart';
-                        parent.replaceChild(newCanvas, oldCanvas);
-                    }
+                    const dates = Object.keys(this.dailyDataMap);
+                    const values = Object.values(this.dailyDataMap).map(d => d.total.toFixed(2));
 
-                    await this.$nextTick();
-
-                    const canvas = document.getElementById('mainChart');
-                    if (!canvas) {
-                        console.error('Canvas element not found');
-                        return;
-                    }
-
-                    const ctx = canvas.getContext('2d');
-                    if (!ctx) {
-                        console.error('Could not get canvas context');
-                        return;
-                    }
-
-                    this.mainChart = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: barLabels,
-                            datasets: [{
-                                label: 'Daily Consumption (kWh)',
-                                data: barData,
-                                backgroundColor: 'rgba(34, 197, 94, 0.7)',
-                                borderColor: 'rgb(34, 197, 94)',
-                                borderWidth: 1
-                            }]
+                    const options = {
+                        series: [{
+                            name: 'Daily Consumption',
+                            data: values
+                        }],
+                        chart: {
+                            type: 'bar',
+                            height: 400,
+                            events: {
+                                dataPointSelection: (event, chartContext, config) => {
+                                    const selectedDate = dates[config.dataPointIndex];
+                                    this.showDayDetails(selectedDate);
+                                }
+                            },
+                            toolbar: {
+                                show: false
+                            }
                         },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            onClick: async (event, elements) => {
-                                if (elements.length > 0) {
-                                    const index = elements[0].index;
-                                    const clickedDate = barLabels[index];
-                                    console.log('👆 [onClick] Bar clicked, date:', clickedDate);
-                                    try {
-                                        await this.showDayDetails(clickedDate);
-                                    } catch (e) {
-                                        console.error('❌ [onClick] Error in showDayDetails:', e);
-                                    }
-                                }
-                            },
-                            plugins: {
-                                legend: {
-                                    display: false
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label: (context) => {
-                                            return `${context.parsed.y.toFixed(2)} kWh`;
-                                        }
-                                    }
-                                }
-                            },
-                            scales: {
-                                x: {
-                                    display: true,
-                                    ticks: {
-                                        maxRotation: 45,
-                                        minRotation: 45
-                                    }
-                                },
-                                y: {
-                                    display: true,
-                                    beginAtZero: true,
-                                    title: {
-                                        display: true,
-                                        text: 'Consumption (kWh)'
-                                    }
+                        plotOptions: {
+                            bar: {
+                                borderRadius: 4,
+                                dataLabels: {
+                                    position: 'top'
                                 }
                             }
+                        },
+                        dataLabels: {
+                            enabled: false
+                        },
+                        xaxis: {
+                            categories: dates,
+                            labels: {
+                                rotate: -45,
+                                rotateAlways: true
+                            }
+                        },
+                        yaxis: {
+                            title: {
+                                text: 'Consumption (kWh)'
+                            },
+                            labels: {
+                                formatter: (val) => val.toFixed(2)
+                            }
+                        },
+                        tooltip: {
+                            y: {
+                                formatter: (val) => `${parseFloat(val).toFixed(2)} kWh`
+                            }
+                        },
+                        colors: ['#22c55e'],
+                        fill: {
+                            opacity: 0.8
                         }
-                    });
+                    };
+
+                    this.mainChart = new ApexCharts(document.querySelector("#mainChart"), options);
+                    await this.mainChart.render();
                 },
 
                 async showDayDetails(date) {
-                    console.log('🔍 [showDayDetails] START - date:', date);
                     const dayData = this.dailyDataMap[date];
 
                     if (!dayData || !dayData.intervals || dayData.intervals.length === 0) {
-                        console.error('❌ [showDayDetails] No data available for date:', date);
+                        console.error('No data available for date:', date);
                         return;
                     }
-
-                    console.log('✅ [showDayDetails] Found', dayData.intervals.length, 'intervals');
 
                     // Sort intervals by time
                     const sortedIntervals = dayData.intervals.sort((a, b) => {
@@ -469,101 +434,70 @@ async def root():
                             minute: '2-digit'
                         });
                     });
-                    const data = sortedIntervals.map(d => parseFloat(d.value));
-
-                    // Destroy chart and remove canvas to kill all event listeners
-                    console.log('🗑️ [showDayDetails] Removing old canvas...');
-                    if (this.mainChart) {
-                        try {
-                            this.mainChart.destroy();
-                        } catch (e) {
-                            console.warn('Error destroying chart:', e);
-                        }
-                        this.mainChart = null;
-                    }
-
-                    // Remove and recreate canvas element to clear all event listeners
-                    const oldCanvas = document.getElementById('mainChart');
-                    if (oldCanvas) {
-                        const parent = oldCanvas.parentNode;
-                        const newCanvas = document.createElement('canvas');
-                        newCanvas.id = 'mainChart';
-                        parent.replaceChild(newCanvas, oldCanvas);
-                        console.log('✅ [showDayDetails] Canvas recreated');
-                    }
+                    const values = sortedIntervals.map(d => parseFloat(d.value).toFixed(3));
 
                     // Update selected day
                     this.selectedDay = date;
+
+                    // Destroy and recreate chart
+                    if (this.mainChart) {
+                        this.mainChart.destroy();
+                        this.mainChart = null;
+                    }
+
                     await this.$nextTick();
 
-                    // Get new canvas
-                    const canvas = document.getElementById('mainChart');
-                    if (!canvas) {
-                        console.error('❌ [showDayDetails] Canvas element not found');
-                        return;
-                    }
-
-                    const ctx = canvas.getContext('2d');
-                    if (!ctx) {
-                        console.error('❌ [showDayDetails] Could not get canvas context');
-                        return;
-                    }
-
-                    console.log('📊 [showDayDetails] Creating new Chart with', data.length, 'data points...');
-                    try {
-                        this.mainChart = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'Half-hourly Consumption (kWh)',
-                                data: data,
-                                backgroundColor: 'rgba(59, 130, 246, 0.7)',
-                                borderColor: 'rgb(59, 130, 246)',
-                                borderWidth: 1
-                            }]
+                    const options = {
+                        series: [{
+                            name: 'Half-hourly Consumption',
+                            data: values
+                        }],
+                        chart: {
+                            type: 'bar',
+                            height: 400,
+                            toolbar: {
+                                show: false
+                            }
                         },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            plugins: {
-                                legend: {
-                                    display: false
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label: (context) => {
-                                            return `${context.parsed.y.toFixed(3)} kWh`;
-                                        }
-                                    }
-                                }
-                            },
-                            scales: {
-                                x: {
-                                    display: true,
-                                    ticks: {
-                                        maxRotation: 90,
-                                        minRotation: 45
-                                    }
-                                },
-                                y: {
-                                    display: true,
-                                    beginAtZero: true,
-                                    title: {
-                                        display: true,
-                                        text: 'Consumption (kWh)'
-                                    }
+                        plotOptions: {
+                            bar: {
+                                borderRadius: 4,
+                                dataLabels: {
+                                    position: 'top'
                                 }
                             }
+                        },
+                        dataLabels: {
+                            enabled: false
+                        },
+                        xaxis: {
+                            categories: labels,
+                            labels: {
+                                rotate: -45,
+                                rotateAlways: true
+                            }
+                        },
+                        yaxis: {
+                            title: {
+                                text: 'Consumption (kWh)'
+                            },
+                            labels: {
+                                formatter: (val) => parseFloat(val).toFixed(3)
+                            }
+                        },
+                        tooltip: {
+                            y: {
+                                formatter: (val) => `${parseFloat(val).toFixed(3)} kWh`
+                            }
+                        },
+                        colors: ['#3b82f6'],
+                        fill: {
+                            opacity: 0.8
                         }
-                    });
-                        console.log('✅ [showDayDetails] Chart created successfully');
-                    } catch (e) {
-                        console.error('❌ [showDayDetails] Error creating chart:', e);
-                        console.error('Stack trace:', e.stack);
-                        throw e;
-                    }
-                    console.log('🏁 [showDayDetails] END');
+                    };
+
+                    this.mainChart = new ApexCharts(document.querySelector("#mainChart"), options);
+                    await this.mainChart.render();
                 },
 
                 async backToDaily() {
