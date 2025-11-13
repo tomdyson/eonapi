@@ -239,8 +239,8 @@ async def root():
             },
             async mounted() {
                 // Log version for debugging
-                console.log('%c🔌 eonapi UI v0.2.0-b9a5522', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
-                console.log('Build: 2025-11-13 | Chart race condition fixes + localStorage persistence');
+                console.log('%c🔌 eonapi UI v0.2.0-dev', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
+                console.log('Build: 2025-11-13 | Enhanced chart cleanup with error handling');
 
                 // Check if we have cached data
                 const cachedData = localStorage.getItem('eonapi_meter_data');
@@ -303,15 +303,20 @@ async def root():
                 },
 
                 logout() {
+                    // Destroy chart first
+                    if (this.mainChart) {
+                        try {
+                            this.mainChart.destroy();
+                        } catch (e) {
+                            console.warn('Error destroying chart on logout:', e);
+                        }
+                        this.mainChart = null;
+                    }
+
                     this.isAuthenticated = false;
                     this.meterData = null;
                     this.credentials.password = '';
                     this.selectedDay = null;
-
-                    if (this.mainChart) {
-                        this.mainChart.destroy();
-                        this.mainChart = null;
-                    }
 
                     // Clear localStorage
                     localStorage.removeItem('eonapi_meter_data');
@@ -348,12 +353,19 @@ async def root():
                     const barLabels = Object.keys(this.dailyDataMap);
                     const barData = Object.values(this.dailyDataMap).map(d => d.total);
 
+                    // Destroy existing chart first
                     if (this.mainChart) {
-                        this.mainChart.destroy();
+                        try {
+                            this.mainChart.destroy();
+                        } catch (e) {
+                            console.warn('Error destroying chart:', e);
+                        }
                         this.mainChart = null;
-                        // Wait for Chart.js to fully clean up
-                        await this.$nextTick();
                     }
+
+                    // Wait for any pending DOM updates
+                    await this.$nextTick();
+                    await this.$nextTick(); // Double tick to ensure DOM is stable
 
                     const canvas = document.getElementById('mainChart');
                     if (!canvas) {
@@ -362,6 +374,11 @@ async def root():
                     }
 
                     const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        console.error('Could not get canvas context');
+                        return;
+                    }
+
                     this.mainChart = new Chart(ctx, {
                         type: 'bar',
                         data: {
@@ -418,7 +435,6 @@ async def root():
                 },
 
                 async showDayDetails(date) {
-                    this.selectedDay = date;
                     const dayData = this.dailyDataMap[date];
 
                     if (!dayData || !dayData.intervals || dayData.intervals.length === 0) {
@@ -440,13 +456,22 @@ async def root():
                     });
                     const data = sortedIntervals.map(d => parseFloat(d.value));
 
+                    // Destroy existing chart first
                     if (this.mainChart) {
-                        this.mainChart.destroy();
+                        try {
+                            this.mainChart.destroy();
+                        } catch (e) {
+                            console.warn('Error destroying chart:', e);
+                        }
                         this.mainChart = null;
-                        // Wait for Chart.js to fully clean up
-                        await this.$nextTick();
                     }
 
+                    // Update selected day and wait for Vue to update DOM
+                    this.selectedDay = date;
+                    await this.$nextTick();
+                    await this.$nextTick(); // Double tick to ensure DOM is stable
+
+                    // Get fresh canvas reference after DOM update
                     const canvas = document.getElementById('mainChart');
                     if (!canvas) {
                         console.error('Canvas element not found');
@@ -454,6 +479,11 @@ async def root():
                     }
 
                     const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        console.error('Could not get canvas context');
+                        return;
+                    }
+
                     this.mainChart = new Chart(ctx, {
                         type: 'bar',
                         data: {
