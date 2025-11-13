@@ -42,10 +42,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/eonapi"
-Repository = "https://github.com/yourusername/eonapi"
-Issues = "https://github.com/yourusername/eonapi/issues"
-Documentation = "https://github.com/yourusername/eonapi#readme"
+Homepage = "https://github.com/tomdyson/eonapi"
+Repository = "https://github.com/tomdyson/eonapi"
+Issues = "https://github.com/tomdyson/eonapi/issues"
+Documentation = "https://github.com/tomdyson/eonapi#readme"
 
 [project.scripts]
 eonapi = "eonapi.cli:main"
