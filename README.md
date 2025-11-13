@@ -257,21 +257,29 @@ uv run eonapi export --days 7
 uv run eonapi stats
 ```
 
-### Building for PyPI
+## Releasing
 
-```bash
-# Install build tools
-pip install build twine
+The project uses GitHub Actions to automatically publish to PyPI when version tags are pushed.
 
-# Build distribution
-python -m build
+### Release Steps
 
-# Upload to PyPI (test)
-twine upload --repository testpypi dist/*
+1. **Update Version**: Edit `pyproject.toml` and change the version number
+2. **Commit Changes**:
+   ```bash
+   git add pyproject.toml
+   git commit -m "Bump version to 0.2.0"
+   git push
+   ```
+3. **Create and Push Tag**:
+   ```bash
+   git tag v0.2.0
+   git push origin v0.2.0
+   ```
+4. **Automatic Publishing**: GitHub Actions will automatically build and publish to PyPI
 
-# Upload to PyPI (production)
-twine upload dist/*
-```
+### Prerequisites
+
+A PyPI API token must be added to the repository's GitHub secrets as `PYPI_API_TOKEN`. You can create one at https://pypi.org/manage/account/token/.
 
 ## Contributing
 
