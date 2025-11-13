@@ -239,8 +239,8 @@ async def root():
             },
             async mounted() {
                 // Log version for debugging
-                console.log('%c🔌 eonapi UI v0.2.0-apexcharts', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
-                console.log('Build: 2025-11-13 | Fresh start with ApexCharts');
+                console.log('%c🔌 eonapi UI v0.2.0-apexcharts-fast', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
+                console.log('Build: 2025-11-13 | ApexCharts with reduced animations (200ms)');
 
                 // Check if we have cached data
                 const cachedData = localStorage.getItem('eonapi_meter_data');
@@ -363,6 +363,13 @@ async def root():
                         chart: {
                             type: 'bar',
                             height: 400,
+                            animations: {
+                                enabled: true,
+                                speed: 200,
+                                animateGradually: {
+                                    enabled: false
+                                }
+                            },
                             events: {
                                 dataPointSelection: (event, chartContext, config) => {
                                     const selectedDate = dates[config.dataPointIndex];
@@ -455,6 +462,13 @@ async def root():
                         chart: {
                             type: 'bar',
                             height: 400,
+                            animations: {
+                                enabled: true,
+                                speed: 200,
+                                animateGradually: {
+                                    enabled: false
+                                }
+                            },
                             toolbar: {
                                 show: false
                             }
