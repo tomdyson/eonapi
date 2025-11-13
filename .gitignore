@@ -1,0 +1,37 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*.egg
+
+# Virtual environments
+.venv
+venv/
+env/
+
+# Environment variables and credentials
+.env
+*.csv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# PyPI build artifacts
+.eggs/
+*.manifest
+*.spec
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Distribution
+*.tar.gz
+*.whl
