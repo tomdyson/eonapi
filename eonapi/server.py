@@ -113,6 +113,11 @@ async def root():
                     <div v-if="error" class="mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                         {{ error }}
                     </div>
+
+                    <div class="mt-4 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded text-sm">
+                        <p class="font-semibold">🔒 Privacy Note</p>
+                        <p class="mt-1">Credentials and data are stored locally in your browser to avoid re-login on refresh. Click Logout to clear.</p>
+                    </div>
                 </div>
             </div>
 
@@ -184,7 +189,15 @@ async def root():
                 </div>
 
                 <!-- Actions -->
-                <div class="text-center">
+                <div class="text-center space-x-4">
+                    <button
+                        @click="refreshData"
+                        class="bg-blue-600 text-white py-2 px-6 rounded-lg hover:bg-blue-700 transition duration-200"
+                        :disabled="loading"
+                    >
+                        <span v-if="loading">Refreshing...</span>
+                        <span v-else>Refresh Data</span>
+                    </button>
                     <button
                         @click="logout"
                         class="bg-gray-600 text-white py-2 px-6 rounded-lg hover:bg-gray-700 transition duration-200"
@@ -224,6 +237,27 @@ async def root():
                     dailyDataMap: {}
                 };
             },
+            mounted() {
+                // Check if we have cached data
+                const cachedData = localStorage.getItem('eonapi_meter_data');
+                const cachedCredentials = localStorage.getItem('eonapi_credentials');
+
+                if (cachedData && cachedCredentials) {
+                    try {
+                        this.meterData = JSON.parse(cachedData);
+                        this.credentials = JSON.parse(cachedCredentials);
+                        this.isAuthenticated = true;
+
+                        this.$nextTick(() => {
+                            this.createCharts();
+                        });
+                    } catch (e) {
+                        // If parsing fails, clear cache
+                        localStorage.removeItem('eonapi_meter_data');
+                        localStorage.removeItem('eonapi_credentials');
+                    }
+                }
+            },
             methods: {
                 async handleLogin() {
                     this.loading = true;
@@ -246,6 +280,10 @@ async def root():
                         this.meterData = await response.json();
                         this.isAuthenticated = true;
 
+                        // Save to localStorage
+                        localStorage.setItem('eonapi_meter_data', JSON.stringify(this.meterData));
+                        localStorage.setItem('eonapi_credentials', JSON.stringify(this.credentials));
+
                         // Wait for DOM update before creating charts
                         await this.$nextTick();
                         this.createCharts();
@@ -256,12 +294,21 @@ async def root():
                     }
                 },
 
+                async refreshData() {
+                    // Re-fetch data using stored credentials
+                    await this.handleLogin();
+                },
+
                 logout() {
                     this.isAuthenticated = false;
                     this.meterData = null;
                     this.credentials.password = '';
                     this.selectedDay = null;
                     if (this.mainChart) this.mainChart.destroy();
+
+                    // Clear localStorage
+                    localStorage.removeItem('eonapi_meter_data');
+                    localStorage.removeItem('eonapi_credentials');
                 },
 
                 formatDate(dateStr) {
