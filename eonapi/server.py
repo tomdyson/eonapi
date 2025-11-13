@@ -238,6 +238,10 @@ async def root():
                 };
             },
             async mounted() {
+                // Log version for debugging
+                console.log('%c🔌 eonapi UI v0.2.0-b9a5522', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
+                console.log('Build: 2025-11-13 | Chart race condition fixes + localStorage persistence');
+
                 // Check if we have cached data
                 const cachedData = localStorage.getItem('eonapi_meter_data');
                 const cachedCredentials = localStorage.getItem('eonapi_credentials');
