@@ -4,7 +4,7 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A Python CLI tool for retrieving and analyzing electricity/gas consumption data from the Eon Next API.
+A Python CLI tool for retrieving and analyzing electricity/gas consumption data from the E.ON Next API.
 
 ## Features
 
@@ -13,7 +13,7 @@ A Python CLI tool for retrieving and analyzing electricity/gas consumption data 
 - **Multiple Commands**:
   - `export`: Export raw data to CSV
   - `stats`: Display consumption statistics and analysis
-  - `ui`: Interactive web UI (coming soon)
+  - `ui`: Interactive web UI with charts and visualizations
 - **Multiple meter support**: Auto-selects single meter, prompts for selection with multiple
 - **Flexible authentication**: Environment variables (recommended) or command-line arguments
 - **Progress feedback**: Shows pagination progress while fetching large datasets
@@ -81,8 +81,8 @@ eonapi stats --days 7
 Export consumption data to CSV format.
 
 **Options:**
-- `--username`, `-u`: Eon Next account username (email)
-- `--password`, `-p`: Eon Next account password
+- `--username`, `-u`: E.ON Next account username (email)
+- `--password`, `-p`: E.ON Next account password
 - `--days`, `-d`: Number of days to retrieve (default: 30)
 - `--meter`, `-m`: Meter serial number (if you have multiple)
 - `--output`, `-o`: Output file path (default: stdout)
@@ -104,8 +104,8 @@ eonapi export --meter 12345678 --days 30 > meter1.csv
 Display consumption statistics and analysis.
 
 **Options:**
-- `--username`, `-u`: Eon Next account username (email)
-- `--password`, `-p`: Eon Next account password
+- `--username`, `-u`: E.ON Next account username (email)
+- `--password`, `-p`: E.ON Next account password
 - `--days`, `-d`: Number of days to analyze (default: 30)
 - `--meter`, `-m`: Meter serial number (if you have multiple)
 
@@ -139,11 +139,47 @@ Peak Time: 2025-10-14T17:00:00+01:00
 
 ### `eonapi ui`
 
-Launch interactive web UI (coming soon).
+Launch interactive web UI with data visualization.
+
+**Installation:**
+
+The web UI requires additional dependencies. Install them with:
+
+```bash
+pip install 'eonapi[ui]'
+```
 
 **Options:**
 - `--port`, `-p`: Port to run on (default: 8000)
 - `--host`, `-h`: Host to bind to (default: 127.0.0.1)
+
+**Examples:**
+```bash
+# Start web UI on default port (8000)
+eonapi ui
+
+# Start on custom port
+eonapi ui --port 8080
+
+# Make accessible from all network interfaces
+eonapi ui --host 0.0.0.0
+```
+
+**Features:**
+- Interactive login form for secure credential entry
+- Real-time data visualization with ApexCharts
+- Statistics dashboard showing:
+  - Total consumption
+  - Average daily usage
+  - Peak usage times and values
+  - Meter information
+- Interactive drill-down chart:
+  - Daily consumption bar chart with clickable bars
+  - Click any day to see half-hourly breakdown for that day
+  - Navigate back to daily view with a single click
+- Credential persistence using localStorage (no need to re-login on refresh)
+- Responsive design with Tailwind CSS
+- Single-page Vue.js application (no build step required)
 
 ## Authentication
 
@@ -233,12 +269,12 @@ Peak Time: 2025-11-11T16:30:00+00:00
 
 ## GraphQL API
 
-This tool uses the Eon Next GraphQL API (Kraken platform). The API requires JWT authentication and supports querying consumption data at various granularities.
+This tool uses the E.ON Next GraphQL API (Kraken platform). The API requires JWT authentication and supports querying consumption data at various granularities.
 
 ## Requirements
 
 - Python 3.9+
-- Eon Next account with smart meter
+- E.ON Next account with smart meter
 
 ## Development
 
@@ -291,7 +327,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Disclaimer
 
-This is an unofficial tool and is not affiliated with, endorsed by, or connected to Eon Next or E.ON. Use at your own risk.
+This is an unofficial tool and is not affiliated with, endorsed by, or connected to E.ON Next or E.ON. Use at your own risk.
 
 ## Support
 
