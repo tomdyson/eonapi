@@ -239,8 +239,8 @@ async def root():
             },
             async mounted() {
                 // Log version for debugging
-                console.log('%c🔌 eonapi UI v0.2.0-dev', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
-                console.log('Build: 2025-11-13 | Enhanced chart cleanup with error handling');
+                console.log('%c🔌 eonapi UI v0.2.0-debug', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
+                console.log('Build: 2025-11-13 | DEBUG MODE - Verbose logging enabled');
 
                 // Check if we have cached data
                 const cachedData = localStorage.getItem('eonapi_meter_data');
@@ -394,11 +394,16 @@ async def root():
                         options: {
                             responsive: true,
                             maintainAspectRatio: true,
-                            onClick: (event, elements) => {
+                            onClick: async (event, elements) => {
                                 if (elements.length > 0) {
                                     const index = elements[0].index;
                                     const clickedDate = barLabels[index];
-                                    this.showDayDetails(clickedDate);
+                                    console.log('👆 [onClick] Bar clicked, date:', clickedDate);
+                                    try {
+                                        await this.showDayDetails(clickedDate);
+                                    } catch (e) {
+                                        console.error('❌ [onClick] Error in showDayDetails:', e);
+                                    }
                                 }
                             },
                             plugins: {
@@ -435,12 +440,15 @@ async def root():
                 },
 
                 async showDayDetails(date) {
+                    console.log('🔍 [showDayDetails] START - date:', date);
                     const dayData = this.dailyDataMap[date];
 
                     if (!dayData || !dayData.intervals || dayData.intervals.length === 0) {
-                        console.error('No data available for date:', date);
+                        console.error('❌ [showDayDetails] No data available for date:', date);
                         return;
                     }
+
+                    console.log('✅ [showDayDetails] Found', dayData.intervals.length, 'intervals');
 
                     // Sort intervals by time
                     const sortedIntervals = dayData.intervals.sort((a, b) => {
@@ -457,34 +465,48 @@ async def root():
                     const data = sortedIntervals.map(d => parseFloat(d.value));
 
                     // Destroy existing chart first
+                    console.log('🗑️ [showDayDetails] Destroying existing chart, exists:', !!this.mainChart);
                     if (this.mainChart) {
                         try {
+                            console.log('🗑️ [showDayDetails] Calling destroy()...');
                             this.mainChart.destroy();
+                            console.log('✅ [showDayDetails] Chart destroyed successfully');
                         } catch (e) {
-                            console.warn('Error destroying chart:', e);
+                            console.error('❌ [showDayDetails] Error destroying chart:', e);
                         }
                         this.mainChart = null;
+                        console.log('✅ [showDayDetails] Chart reference set to null');
                     }
 
                     // Update selected day and wait for Vue to update DOM
+                    console.log('🔄 [showDayDetails] Updating selectedDay to:', date);
                     this.selectedDay = date;
+                    console.log('⏳ [showDayDetails] Waiting for first $nextTick...');
                     await this.$nextTick();
+                    console.log('⏳ [showDayDetails] Waiting for second $nextTick...');
                     await this.$nextTick(); // Double tick to ensure DOM is stable
+                    console.log('✅ [showDayDetails] DOM updates complete');
 
                     // Get fresh canvas reference after DOM update
+                    console.log('🎨 [showDayDetails] Getting canvas element...');
                     const canvas = document.getElementById('mainChart');
                     if (!canvas) {
-                        console.error('Canvas element not found');
+                        console.error('❌ [showDayDetails] Canvas element not found');
                         return;
                     }
+                    console.log('✅ [showDayDetails] Canvas found:', canvas);
 
+                    console.log('🎨 [showDayDetails] Getting canvas context...');
                     const ctx = canvas.getContext('2d');
                     if (!ctx) {
-                        console.error('Could not get canvas context');
+                        console.error('❌ [showDayDetails] Could not get canvas context');
                         return;
                     }
+                    console.log('✅ [showDayDetails] Context obtained');
 
-                    this.mainChart = new Chart(ctx, {
+                    console.log('📊 [showDayDetails] Creating new Chart with', data.length, 'data points...');
+                    try {
+                        this.mainChart = new Chart(ctx, {
                         type: 'bar',
                         data: {
                             labels: labels,
@@ -530,6 +552,13 @@ async def root():
                             }
                         }
                     });
+                        console.log('✅ [showDayDetails] Chart created successfully');
+                    } catch (e) {
+                        console.error('❌ [showDayDetails] Error creating chart:', e);
+                        console.error('Stack trace:', e.stack);
+                        throw e;
+                    }
+                    console.log('🏁 [showDayDetails] END');
                 },
 
                 async backToDaily() {
