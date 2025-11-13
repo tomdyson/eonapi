@@ -239,8 +239,8 @@ async def root():
             },
             async mounted() {
                 // Log version for debugging
-                console.log('%c🔌 eonapi UI v0.2.0-debug-2', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
-                console.log('Build: 2025-11-13 | Event queue flush delay added');
+                console.log('%c🔌 eonapi UI v0.2.0-canvas-replace', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
+                console.log('Build: 2025-11-13 | Canvas replacement strategy');
 
                 // Check if we have cached data
                 const cachedData = localStorage.getItem('eonapi_meter_data');
@@ -353,7 +353,7 @@ async def root():
                     const barLabels = Object.keys(this.dailyDataMap);
                     const barData = Object.values(this.dailyDataMap).map(d => d.total);
 
-                    // Destroy existing chart first
+                    // Destroy chart and remove canvas to kill all event listeners
                     if (this.mainChart) {
                         try {
                             this.mainChart.destroy();
@@ -361,14 +361,18 @@ async def root():
                             console.warn('Error destroying chart:', e);
                         }
                         this.mainChart = null;
-
-                        // Wait for event handlers to flush
-                        await new Promise(resolve => setTimeout(resolve, 50));
                     }
 
-                    // Wait for any pending DOM updates
+                    // Remove and recreate canvas element to clear all event listeners
+                    const oldCanvas = document.getElementById('mainChart');
+                    if (oldCanvas) {
+                        const parent = oldCanvas.parentNode;
+                        const newCanvas = document.createElement('canvas');
+                        newCanvas.id = 'mainChart';
+                        parent.replaceChild(newCanvas, oldCanvas);
+                    }
+
                     await this.$nextTick();
-                    await this.$nextTick(); // Double tick to ensure DOM is stable
 
                     const canvas = document.getElementById('mainChart');
                     if (!canvas) {
@@ -467,50 +471,43 @@ async def root():
                     });
                     const data = sortedIntervals.map(d => parseFloat(d.value));
 
-                    // Destroy existing chart first
-                    console.log('🗑️ [showDayDetails] Destroying existing chart, exists:', !!this.mainChart);
+                    // Destroy chart and remove canvas to kill all event listeners
+                    console.log('🗑️ [showDayDetails] Removing old canvas...');
                     if (this.mainChart) {
                         try {
-                            console.log('🗑️ [showDayDetails] Calling destroy()...');
                             this.mainChart.destroy();
-                            console.log('✅ [showDayDetails] Chart destroyed successfully');
                         } catch (e) {
-                            console.error('❌ [showDayDetails] Error destroying chart:', e);
+                            console.warn('Error destroying chart:', e);
                         }
                         this.mainChart = null;
-                        console.log('✅ [showDayDetails] Chart reference set to null');
-
-                        // Wait for event handlers to flush out of the browser's event queue
-                        console.log('⏳ [showDayDetails] Waiting for event queue to flush...');
-                        await new Promise(resolve => setTimeout(resolve, 50));
-                        console.log('✅ [showDayDetails] Event queue flushed');
                     }
 
-                    // Update selected day and wait for Vue to update DOM
-                    console.log('🔄 [showDayDetails] Updating selectedDay to:', date);
-                    this.selectedDay = date;
-                    console.log('⏳ [showDayDetails] Waiting for first $nextTick...');
-                    await this.$nextTick();
-                    console.log('⏳ [showDayDetails] Waiting for second $nextTick...');
-                    await this.$nextTick(); // Double tick to ensure DOM is stable
-                    console.log('✅ [showDayDetails] DOM updates complete');
+                    // Remove and recreate canvas element to clear all event listeners
+                    const oldCanvas = document.getElementById('mainChart');
+                    if (oldCanvas) {
+                        const parent = oldCanvas.parentNode;
+                        const newCanvas = document.createElement('canvas');
+                        newCanvas.id = 'mainChart';
+                        parent.replaceChild(newCanvas, oldCanvas);
+                        console.log('✅ [showDayDetails] Canvas recreated');
+                    }
 
-                    // Get fresh canvas reference after DOM update
-                    console.log('🎨 [showDayDetails] Getting canvas element...');
+                    // Update selected day
+                    this.selectedDay = date;
+                    await this.$nextTick();
+
+                    // Get new canvas
                     const canvas = document.getElementById('mainChart');
                     if (!canvas) {
                         console.error('❌ [showDayDetails] Canvas element not found');
                         return;
                     }
-                    console.log('✅ [showDayDetails] Canvas found:', canvas);
 
-                    console.log('🎨 [showDayDetails] Getting canvas context...');
                     const ctx = canvas.getContext('2d');
                     if (!ctx) {
                         console.error('❌ [showDayDetails] Could not get canvas context');
                         return;
                     }
-                    console.log('✅ [showDayDetails] Context obtained');
 
                     console.log('📊 [showDayDetails] Creating new Chart with', data.length, 'data points...');
                     try {
