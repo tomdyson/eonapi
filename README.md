@@ -29,7 +29,7 @@ pip install eonapi
 ### From source
 
 ```bash
-git clone https://github.com/yourusername/eonapi.git
+git clone https://github.com/tomdyson/eonapi.git
 cd eonapi
 pip install -e .
 ```
@@ -37,7 +37,7 @@ pip install -e .
 ### Using uv (for development)
 
 ```bash
-git clone https://github.com/yourusername/eonapi.git
+git clone https://github.com/tomdyson/eonapi.git
 cd eonapi
 uv sync
 ```
@@ -245,7 +245,7 @@ This tool uses the Eon Next GraphQL API (Kraken platform). The API requires JWT 
 ### Setup
 
 ```bash
-git clone https://github.com/yourusername/eonapi.git
+git clone https://github.com/tomdyson/eonapi.git
 cd eonapi
 uv sync
 ```
@@ -287,4 +287,4 @@ This is an unofficial tool and is not affiliated with, endorsed by, or connected
 
 ## Support
 
-If you encounter any issues or have questions, please [open an issue](https://github.com/yourusername/eonapi/issues) on GitHub.
+If you encounter any issues or have questions, please [open an issue](https://github.com/tomdyson/eonapi/issues) on GitHub.
