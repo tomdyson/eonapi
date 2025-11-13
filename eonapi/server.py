@@ -44,7 +44,7 @@ async def root():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>eonapi - Energy Consumption Dashboard</title>
+    <title>E.ON API - Energy Consumption Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0/dist/apexcharts.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -54,7 +54,7 @@ async def root():
         <!-- Header -->
         <header class="bg-blue-600 text-white shadow-lg">
             <div class="container mx-auto px-4 py-6">
-                <h1 class="text-3xl font-bold">⚡ eonapi Dashboard</h1>
+                <h1 class="text-3xl font-bold">⚡ E.ON API Dashboard</h1>
                 <p class="text-blue-100 mt-2">Energy Consumption Analysis</p>
             </div>
         </header>
@@ -64,7 +64,7 @@ async def root():
             <!-- Login Form -->
             <div v-if="!isAuthenticated" class="max-w-md mx-auto">
                 <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-bold mb-6 text-gray-800">Login to Eon Next</h2>
+                    <h2 class="text-2xl font-bold mb-6 text-gray-800">Login to E.ON Next</h2>
 
                     <form @submit.prevent="handleLogin">
                         <div class="mb-4">
@@ -211,8 +211,8 @@ async def root():
         <!-- Footer -->
         <footer class="bg-gray-800 text-white mt-12">
             <div class="container mx-auto px-4 py-6 text-center">
-                <p class="text-sm">eonapi - Energy Consumption Dashboard</p>
-                <p class="text-xs text-gray-400 mt-2">Unofficial tool - Not affiliated with Eon Next</p>
+                <p class="text-sm">E.ON API - Energy Consumption Dashboard</p>
+                <p class="text-xs text-gray-400 mt-2">Unofficial tool - Not affiliated with E.ON Next</p>
             </div>
         </footer>
     </div>
@@ -239,8 +239,8 @@ async def root():
             },
             async mounted() {
                 // Log version for debugging
-                console.log('%c🔌 eonapi UI v0.2.0-apexcharts-fast', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
-                console.log('Build: 2025-11-13 | ApexCharts with reduced animations (200ms)');
+                console.log('%c🔌 E.ON API UI v0.2.0', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
+                console.log('Build: 2025-11-13 | ApexCharts with 200ms animations');
 
                 // Check if we have cached data
                 const cachedData = localStorage.getItem('eonapi_meter_data');
