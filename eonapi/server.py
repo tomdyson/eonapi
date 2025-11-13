@@ -237,7 +237,7 @@ async def root():
                     dailyDataMap: {}
                 };
             },
-            mounted() {
+            async mounted() {
                 // Check if we have cached data
                 const cachedData = localStorage.getItem('eonapi_meter_data');
                 const cachedCredentials = localStorage.getItem('eonapi_credentials');
@@ -248,9 +248,8 @@ async def root():
                         this.credentials = JSON.parse(cachedCredentials);
                         this.isAuthenticated = true;
 
-                        this.$nextTick(() => {
-                            this.createCharts();
-                        });
+                        await this.$nextTick();
+                        await this.createCharts();
                     } catch (e) {
                         // If parsing fails, clear cache
                         localStorage.removeItem('eonapi_meter_data');
@@ -286,7 +285,7 @@ async def root():
 
                         // Wait for DOM update before creating charts
                         await this.$nextTick();
-                        this.createCharts();
+                        await this.createCharts();
                     } catch (err) {
                         this.error = err.message;
                     } finally {
@@ -304,7 +303,11 @@ async def root():
                     this.meterData = null;
                     this.credentials.password = '';
                     this.selectedDay = null;
-                    if (this.mainChart) this.mainChart.destroy();
+
+                    if (this.mainChart) {
+                        this.mainChart.destroy();
+                        this.mainChart = null;
+                    }
 
                     // Clear localStorage
                     localStorage.removeItem('eonapi_meter_data');
@@ -319,7 +322,7 @@ async def root():
                     return new Date(dateStr).toLocaleString();
                 },
 
-                createCharts() {
+                async createCharts() {
                     // Prepare data for daily aggregation
                     this.dailyDataMap = {};
                     this.meterData.consumption_data.forEach(d => {
@@ -334,18 +337,27 @@ async def root():
                         this.dailyDataMap[date].intervals.push(d);
                     });
 
-                    this.createDailyChart();
+                    await this.createDailyChart();
                 },
 
-                createDailyChart() {
+                async createDailyChart() {
                     const barLabels = Object.keys(this.dailyDataMap);
                     const barData = Object.values(this.dailyDataMap).map(d => d.total);
 
                     if (this.mainChart) {
                         this.mainChart.destroy();
+                        this.mainChart = null;
+                        // Wait for Chart.js to fully clean up
+                        await this.$nextTick();
                     }
 
-                    const ctx = document.getElementById('mainChart').getContext('2d');
+                    const canvas = document.getElementById('mainChart');
+                    if (!canvas) {
+                        console.error('Canvas element not found');
+                        return;
+                    }
+
+                    const ctx = canvas.getContext('2d');
                     this.mainChart = new Chart(ctx, {
                         type: 'bar',
                         data: {
@@ -401,11 +413,12 @@ async def root():
                     });
                 },
 
-                showDayDetails(date) {
+                async showDayDetails(date) {
                     this.selectedDay = date;
                     const dayData = this.dailyDataMap[date];
 
-                    if (!dayData || !dayData.intervals) {
+                    if (!dayData || !dayData.intervals || dayData.intervals.length === 0) {
+                        console.error('No data available for date:', date);
                         return;
                     }
 
@@ -425,9 +438,18 @@ async def root():
 
                     if (this.mainChart) {
                         this.mainChart.destroy();
+                        this.mainChart = null;
+                        // Wait for Chart.js to fully clean up
+                        await this.$nextTick();
                     }
 
-                    const ctx = document.getElementById('mainChart').getContext('2d');
+                    const canvas = document.getElementById('mainChart');
+                    if (!canvas) {
+                        console.error('Canvas element not found');
+                        return;
+                    }
+
+                    const ctx = canvas.getContext('2d');
                     this.mainChart = new Chart(ctx, {
                         type: 'bar',
                         data: {
@@ -476,9 +498,9 @@ async def root():
                     });
                 },
 
-                backToDaily() {
+                async backToDaily() {
                     this.selectedDay = null;
-                    this.createDailyChart();
+                    await this.createDailyChart();
                 }
             }
         }).mount('#app');
