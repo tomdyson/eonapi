@@ -239,8 +239,8 @@ async def root():
             },
             async mounted() {
                 // Log version for debugging
-                console.log('%c🔌 eonapi UI v0.2.0-debug', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
-                console.log('Build: 2025-11-13 | DEBUG MODE - Verbose logging enabled');
+                console.log('%c🔌 eonapi UI v0.2.0-debug-2', 'color: #3b82f6; font-weight: bold; font-size: 14px;');
+                console.log('Build: 2025-11-13 | Event queue flush delay added');
 
                 // Check if we have cached data
                 const cachedData = localStorage.getItem('eonapi_meter_data');
@@ -361,6 +361,9 @@ async def root():
                             console.warn('Error destroying chart:', e);
                         }
                         this.mainChart = null;
+
+                        // Wait for event handlers to flush
+                        await new Promise(resolve => setTimeout(resolve, 50));
                     }
 
                     // Wait for any pending DOM updates
@@ -476,6 +479,11 @@ async def root():
                         }
                         this.mainChart = null;
                         console.log('✅ [showDayDetails] Chart reference set to null');
+
+                        // Wait for event handlers to flush out of the browser's event queue
+                        console.log('⏳ [showDayDetails] Waiting for event queue to flush...');
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                        console.log('✅ [showDayDetails] Event queue flushed');
                     }
 
                     // Update selected day and wait for Vue to update DOM
