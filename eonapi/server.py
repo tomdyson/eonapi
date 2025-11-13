@@ -1,0 +1,451 @@
+"""FastAPI server for eonapi web UI."""
+
+import asyncio
+from datetime import datetime, timedelta
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+
+from .api import EonNextAPI
+
+
+app = FastAPI(title="eonapi Web UI")
+
+
+class LoginRequest(BaseModel):
+    """Request model for login."""
+    username: str
+    password: str
+    days: int = 30
+    meter_serial: Optional[str] = None
+
+
+class MeterData(BaseModel):
+    """Response model for meter data."""
+    meter_serial: str
+    meter_type: str
+    start_date: str
+    end_date: str
+    total_kwh: float
+    avg_daily: float
+    peak_kwh: float
+    peak_time: str
+    consumption_data: list[dict]
+
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    """Serve the web UI."""
+    return """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eonapi - Energy Consumption Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div id="app" class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-blue-600 text-white shadow-lg">
+            <div class="container mx-auto px-4 py-6">
+                <h1 class="text-3xl font-bold">⚡ eonapi Dashboard</h1>
+                <p class="text-blue-100 mt-2">Energy Consumption Analysis</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-8">
+            <!-- Login Form -->
+            <div v-if="!isAuthenticated" class="max-w-md mx-auto">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-2xl font-bold mb-6 text-gray-800">Login to Eon Next</h2>
+
+                    <form @submit.prevent="handleLogin">
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-medium mb-2">Username (Email)</label>
+                            <input
+                                v-model="credentials.username"
+                                type="email"
+                                required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="your@email.com"
+                            />
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-medium mb-2">Password</label>
+                            <input
+                                v-model="credentials.password"
+                                type="password"
+                                required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="••••••••"
+                            />
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-gray-700 font-medium mb-2">Days to Retrieve</label>
+                            <input
+                                v-model.number="credentials.days"
+                                type="number"
+                                min="1"
+                                max="365"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            :disabled="loading"
+                            class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-200"
+                        >
+                            <span v-if="loading">Loading...</span>
+                            <span v-else>Fetch Data</span>
+                        </button>
+                    </form>
+
+                    <div v-if="error" class="mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                        {{ error }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard -->
+            <div v-else>
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-gray-500 text-sm font-medium">Total Consumption</h3>
+                        <p class="text-3xl font-bold text-blue-600 mt-2">{{ meterData.total_kwh.toFixed(2) }}</p>
+                        <p class="text-gray-600 text-sm mt-1">kWh</p>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-gray-500 text-sm font-medium">Average Daily</h3>
+                        <p class="text-3xl font-bold text-green-600 mt-2">{{ meterData.avg_daily.toFixed(2) }}</p>
+                        <p class="text-gray-600 text-sm mt-1">kWh/day</p>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-gray-500 text-sm font-medium">Peak Usage</h3>
+                        <p class="text-3xl font-bold text-orange-600 mt-2">{{ meterData.peak_kwh.toFixed(2) }}</p>
+                        <p class="text-gray-600 text-sm mt-1">kWh</p>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-gray-500 text-sm font-medium">Meter Type</h3>
+                        <p class="text-2xl font-bold text-purple-600 mt-2 capitalize">{{ meterData.meter_type }}</p>
+                        <p class="text-gray-600 text-sm mt-1">{{ meterData.meter_serial }}</p>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Consumption Over Time</h3>
+                        <canvas id="lineChart"></canvas>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Daily Consumption</h3>
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Peak Time Info -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Peak Usage Details</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <p class="text-gray-600">Peak Time</p>
+                            <p class="font-semibold text-lg">{{ formatDateTime(meterData.peak_time) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Date Range</p>
+                            <p class="font-semibold text-lg">{{ formatDate(meterData.start_date) }} - {{ formatDate(meterData.end_date) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Total Intervals</p>
+                            <p class="font-semibold text-lg">{{ meterData.consumption_data.length }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="text-center">
+                    <button
+                        @click="logout"
+                        class="bg-gray-600 text-white py-2 px-6 rounded-lg hover:bg-gray-700 transition duration-200"
+                    >
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-gray-800 text-white mt-12">
+            <div class="container mx-auto px-4 py-6 text-center">
+                <p class="text-sm">eonapi - Energy Consumption Dashboard</p>
+                <p class="text-xs text-gray-400 mt-2">Unofficial tool - Not affiliated with Eon Next</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    credentials: {
+                        username: '',
+                        password: '',
+                        days: 30
+                    },
+                    isAuthenticated: false,
+                    loading: false,
+                    error: null,
+                    meterData: null,
+                    lineChart: null,
+                    barChart: null
+                };
+            },
+            methods: {
+                async handleLogin() {
+                    this.loading = true;
+                    this.error = null;
+
+                    try {
+                        const response = await fetch('/api/meter-data', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(this.credentials)
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.detail || 'Failed to fetch data');
+                        }
+
+                        this.meterData = await response.json();
+                        this.isAuthenticated = true;
+
+                        // Wait for DOM update before creating charts
+                        await this.$nextTick();
+                        this.createCharts();
+                    } catch (err) {
+                        this.error = err.message;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                logout() {
+                    this.isAuthenticated = false;
+                    this.meterData = null;
+                    this.credentials.password = '';
+                    if (this.lineChart) this.lineChart.destroy();
+                    if (this.barChart) this.barChart.destroy();
+                },
+
+                formatDate(dateStr) {
+                    return new Date(dateStr).toLocaleDateString();
+                },
+
+                formatDateTime(dateStr) {
+                    return new Date(dateStr).toLocaleString();
+                },
+
+                createCharts() {
+                    // Prepare data for line chart (all intervals)
+                    const lineLabels = this.meterData.consumption_data.map(d => {
+                        const date = new Date(d.startAt);
+                        return date.toLocaleString('en-GB', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    });
+                    const lineData = this.meterData.consumption_data.map(d => d.value);
+
+                    // Prepare data for bar chart (daily aggregation)
+                    const dailyData = {};
+                    this.meterData.consumption_data.forEach(d => {
+                        const date = new Date(d.startAt).toLocaleDateString();
+                        dailyData[date] = (dailyData[date] || 0) + parseFloat(d.value);
+                    });
+
+                    const barLabels = Object.keys(dailyData);
+                    const barData = Object.values(dailyData);
+
+                    // Create line chart
+                    const lineCtx = document.getElementById('lineChart').getContext('2d');
+                    this.lineChart = new Chart(lineCtx, {
+                        type: 'line',
+                        data: {
+                            labels: lineLabels,
+                            datasets: [{
+                                label: 'Consumption (kWh)',
+                                data: lineData,
+                                borderColor: 'rgb(59, 130, 246)',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    display: true,
+                                    ticks: {
+                                        maxTicksLimit: 12
+                                    }
+                                },
+                                y: {
+                                    display: true,
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+
+                    // Create bar chart
+                    const barCtx = document.getElementById('barChart').getContext('2d');
+                    this.barChart = new Chart(barCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: barLabels,
+                            datasets: [{
+                                label: 'Daily Consumption (kWh)',
+                                data: barData,
+                                backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                                borderColor: 'rgb(34, 197, 94)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    display: true,
+                                    ticks: {
+                                        maxTicksLimit: 10
+                                    }
+                                },
+                                y: {
+                                    display: true,
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
+    """
+
+
+@app.post("/api/meter-data", response_model=MeterData)
+async def get_meter_data(request: LoginRequest):
+    """Fetch meter data using provided credentials."""
+    try:
+        api = EonNextAPI()
+
+        # Authenticate
+        if not await api.login(request.username, request.password):
+            raise HTTPException(status_code=401, detail="Authentication failed")
+
+        # Get accounts
+        accounts = await api.get_account_numbers()
+        if not accounts:
+            raise HTTPException(status_code=404, detail="No accounts found")
+
+        account_number = accounts[0]
+
+        # Get meters
+        meters = await api.get_meters(account_number)
+        if not meters:
+            raise HTTPException(status_code=404, detail="No meters found")
+
+        # Select meter
+        selected_meter = None
+        if request.meter_serial:
+            for meter in meters:
+                if meter["serial"] == request.meter_serial:
+                    selected_meter = meter
+                    break
+            if not selected_meter:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Meter with serial {request.meter_serial} not found"
+                )
+        else:
+            selected_meter = meters[0]
+
+        # Calculate date range
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=request.days)
+
+        # Fetch consumption data
+        consumption = await api.get_consumption_data(
+            account_number=account_number,
+            meter_id=selected_meter["id"],
+            meter_type=selected_meter["type"],
+            start_date=start_date,
+            end_date=end_date,
+            progress_callback=None
+        )
+
+        if not consumption:
+            raise HTTPException(status_code=404, detail="No consumption data available")
+
+        # Calculate statistics
+        total_kwh = sum(float(record.get("value", 0)) for record in consumption)
+        num_days = len(consumption) / 48
+        avg_daily = total_kwh / num_days if num_days > 0 else 0
+
+        peak_record = max(consumption, key=lambda r: float(r.get("value", 0)))
+        peak_kwh = float(peak_record.get("value", 0))
+        peak_time = peak_record.get("startAt", "")
+
+        return MeterData(
+            meter_serial=selected_meter["serial"],
+            meter_type=selected_meter["type"],
+            start_date=start_date.isoformat(),
+            end_date=end_date.isoformat(),
+            total_kwh=total_kwh,
+            avg_daily=avg_daily,
+            peak_kwh=peak_kwh,
+            peak_time=peak_time,
+            consumption_data=consumption
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

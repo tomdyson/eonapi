@@ -225,19 +225,25 @@ def ui(port: int, host: str):
 
     Example:
 
-        eonpy ui
+        eonapi ui
 
-        eonpy ui --port 8080 --host 0.0.0.0
+        eonapi ui --port 8080 --host 0.0.0.0
     """
-    click.echo("🚧 Web UI Coming Soon! 🚧\n")
-    click.echo("The interactive web UI is planned for a future release.")
-    click.echo("It will include:")
-    click.echo("  • Interactive charts and graphs")
-    click.echo("  • Comparison tools")
-    click.echo("  • Cost analysis")
-    click.echo("  • Export options")
-    click.echo("\nFor now, use 'eonpy export' to get CSV data and 'eonpy stats' for basic analysis.")
-    click.echo(f"\nWould have launched on http://{host}:{port}")
+    try:
+        import uvicorn
+        from .server import app
+
+        click.echo(f"Starting eonapi web UI on http://{host}:{port}")
+        click.echo("Press CTRL+C to stop the server\n")
+
+        uvicorn.run(app, host=host, port=port, log_level="info")
+    except ImportError:
+        raise click.ClickException(
+            "FastAPI and uvicorn are required for the web UI. "
+            "Install them with: pip install 'eonapi[ui]'"
+        )
+    except Exception as e:
+        raise click.ClickException(f"Error starting server: {str(e)}")
 
 
 async def fetch_data(

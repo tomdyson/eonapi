@@ -13,7 +13,7 @@ A Python CLI tool for retrieving and analyzing electricity/gas consumption data 
 - **Multiple Commands**:
   - `export`: Export raw data to CSV
   - `stats`: Display consumption statistics and analysis
-  - `ui`: Interactive web UI (coming soon)
+  - `ui`: Interactive web UI with charts and visualizations
 - **Multiple meter support**: Auto-selects single meter, prompts for selection with multiple
 - **Flexible authentication**: Environment variables (recommended) or command-line arguments
 - **Progress feedback**: Shows pagination progress while fetching large datasets
@@ -139,11 +139,45 @@ Peak Time: 2025-10-14T17:00:00+01:00
 
 ### `eonapi ui`
 
-Launch interactive web UI (coming soon).
+Launch interactive web UI with data visualization.
+
+**Installation:**
+
+The web UI requires additional dependencies. Install them with:
+
+```bash
+pip install 'eonapi[ui]'
+```
 
 **Options:**
 - `--port`, `-p`: Port to run on (default: 8000)
 - `--host`, `-h`: Host to bind to (default: 127.0.0.1)
+
+**Examples:**
+```bash
+# Start web UI on default port (8000)
+eonapi ui
+
+# Start on custom port
+eonapi ui --port 8080
+
+# Make accessible from all network interfaces
+eonapi ui --host 0.0.0.0
+```
+
+**Features:**
+- Interactive login form for secure credential entry
+- Real-time data visualization with Chart.js
+- Statistics dashboard showing:
+  - Total consumption
+  - Average daily usage
+  - Peak usage times and values
+  - Meter information
+- Two chart views:
+  - Line chart: Half-hourly consumption over time
+  - Bar chart: Daily consumption aggregates
+- Responsive design with Tailwind CSS
+- Single-page Vue.js application
 
 ## Authentication
 
