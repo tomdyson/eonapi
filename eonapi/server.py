@@ -145,17 +145,23 @@ async def root():
                     </div>
                 </div>
 
-                <!-- Charts -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h3 class="text-xl font-bold text-gray-800 mb-4">Consumption Over Time</h3>
-                        <canvas id="lineChart"></canvas>
+                <!-- Chart -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">
+                            <span v-if="!selectedDay">Daily Consumption</span>
+                            <span v-else>Half-hourly Consumption - {{ selectedDay }}</span>
+                        </h3>
+                        <button
+                            v-if="selectedDay"
+                            @click="backToDaily"
+                            class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-200 text-sm"
+                        >
+                            ← Back to Daily View
+                        </button>
                     </div>
-
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h3 class="text-xl font-bold text-gray-800 mb-4">Daily Consumption</h3>
-                        <canvas id="barChart"></canvas>
-                    </div>
+                    <p v-if="!selectedDay" class="text-gray-600 text-sm mb-4">Click on a bar to see half-hourly breakdown</p>
+                    <canvas id="mainChart"></canvas>
                 </div>
 
                 <!-- Peak Time Info -->
@@ -213,8 +219,9 @@ async def root():
                     loading: false,
                     error: null,
                     meterData: null,
-                    lineChart: null,
-                    barChart: null
+                    mainChart: null,
+                    selectedDay: null,
+                    dailyDataMap: {}
                 };
             },
             methods: {
@@ -253,8 +260,8 @@ async def root():
                     this.isAuthenticated = false;
                     this.meterData = null;
                     this.credentials.password = '';
-                    if (this.lineChart) this.lineChart.destroy();
-                    if (this.barChart) this.barChart.destroy();
+                    this.selectedDay = null;
+                    if (this.mainChart) this.mainChart.destroy();
                 },
 
                 formatDate(dateStr) {
@@ -266,68 +273,33 @@ async def root():
                 },
 
                 createCharts() {
-                    // Prepare data for line chart (all intervals)
-                    const lineLabels = this.meterData.consumption_data.map(d => {
-                        const date = new Date(d.startAt);
-                        return date.toLocaleString('en-GB', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        });
-                    });
-                    const lineData = this.meterData.consumption_data.map(d => d.value);
-
-                    // Prepare data for bar chart (daily aggregation)
-                    const dailyData = {};
+                    // Prepare data for daily aggregation
+                    this.dailyDataMap = {};
                     this.meterData.consumption_data.forEach(d => {
                         const date = new Date(d.startAt).toLocaleDateString();
-                        dailyData[date] = (dailyData[date] || 0) + parseFloat(d.value);
-                    });
-
-                    const barLabels = Object.keys(dailyData);
-                    const barData = Object.values(dailyData);
-
-                    // Create line chart
-                    const lineCtx = document.getElementById('lineChart').getContext('2d');
-                    this.lineChart = new Chart(lineCtx, {
-                        type: 'line',
-                        data: {
-                            labels: lineLabels,
-                            datasets: [{
-                                label: 'Consumption (kWh)',
-                                data: lineData,
-                                borderColor: 'rgb(59, 130, 246)',
-                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                tension: 0.4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            plugins: {
-                                legend: {
-                                    display: false
-                                }
-                            },
-                            scales: {
-                                x: {
-                                    display: true,
-                                    ticks: {
-                                        maxTicksLimit: 12
-                                    }
-                                },
-                                y: {
-                                    display: true,
-                                    beginAtZero: true
-                                }
-                            }
+                        if (!this.dailyDataMap[date]) {
+                            this.dailyDataMap[date] = {
+                                total: 0,
+                                intervals: []
+                            };
                         }
+                        this.dailyDataMap[date].total += parseFloat(d.value);
+                        this.dailyDataMap[date].intervals.push(d);
                     });
 
-                    // Create bar chart
-                    const barCtx = document.getElementById('barChart').getContext('2d');
-                    this.barChart = new Chart(barCtx, {
+                    this.createDailyChart();
+                },
+
+                createDailyChart() {
+                    const barLabels = Object.keys(this.dailyDataMap);
+                    const barData = Object.values(this.dailyDataMap).map(d => d.total);
+
+                    if (this.mainChart) {
+                        this.mainChart.destroy();
+                    }
+
+                    const ctx = document.getElementById('mainChart').getContext('2d');
+                    this.mainChart = new Chart(ctx, {
                         type: 'bar',
                         data: {
                             labels: barLabels,
@@ -342,25 +314,124 @@ async def root():
                         options: {
                             responsive: true,
                             maintainAspectRatio: true,
+                            onClick: (event, elements) => {
+                                if (elements.length > 0) {
+                                    const index = elements[0].index;
+                                    const clickedDate = barLabels[index];
+                                    this.showDayDetails(clickedDate);
+                                }
+                            },
                             plugins: {
                                 legend: {
                                     display: false
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (context) => {
+                                            return `${context.parsed.y.toFixed(2)} kWh`;
+                                        }
+                                    }
                                 }
                             },
                             scales: {
                                 x: {
                                     display: true,
                                     ticks: {
-                                        maxTicksLimit: 10
+                                        maxRotation: 45,
+                                        minRotation: 45
                                     }
                                 },
                                 y: {
                                     display: true,
-                                    beginAtZero: true
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Consumption (kWh)'
+                                    }
                                 }
                             }
                         }
                     });
+                },
+
+                showDayDetails(date) {
+                    this.selectedDay = date;
+                    const dayData = this.dailyDataMap[date];
+
+                    if (!dayData || !dayData.intervals) {
+                        return;
+                    }
+
+                    // Sort intervals by time
+                    const sortedIntervals = dayData.intervals.sort((a, b) => {
+                        return new Date(a.startAt) - new Date(b.startAt);
+                    });
+
+                    const labels = sortedIntervals.map(d => {
+                        const date = new Date(d.startAt);
+                        return date.toLocaleTimeString('en-GB', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    });
+                    const data = sortedIntervals.map(d => parseFloat(d.value));
+
+                    if (this.mainChart) {
+                        this.mainChart.destroy();
+                    }
+
+                    const ctx = document.getElementById('mainChart').getContext('2d');
+                    this.mainChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Half-hourly Consumption (kWh)',
+                                data: data,
+                                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                                borderColor: 'rgb(59, 130, 246)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (context) => {
+                                            return `${context.parsed.y.toFixed(3)} kWh`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    display: true,
+                                    ticks: {
+                                        maxRotation: 90,
+                                        minRotation: 45
+                                    }
+                                },
+                                y: {
+                                    display: true,
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Consumption (kWh)'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                },
+
+                backToDaily() {
+                    this.selectedDay = null;
+                    this.createDailyChart();
                 }
             }
         }).mount('#app');
