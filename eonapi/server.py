@@ -83,10 +83,10 @@ async def root():
 <body>
     <div id="app" class="min-h-screen">
         <!-- Header -->
-        <header style="background-color: #1a1a1a; color: #FFFFFF;">
+        <header style="background-color: transparent;">
             <div class="container mx-auto px-4 py-8">
                 <h1 class="text-3xl font-bold">E.ON Energy Dashboard</h1>
-                <p style="color: #e5e5e5;" class="mt-2">Consumption Analysis</p>
+                <p style="color: #737373;" class="mt-2">Consumption Analysis</p>
             </div>
         </header>
 
@@ -247,16 +247,16 @@ async def root():
         </main>
 
         <!-- Footer -->
-        <footer style="background-color: #1a1a1a; color: #FFFFFF;" class="mt-12">
+        <footer style="background-color: transparent;" class="mt-12">
             <div class="container mx-auto px-4 py-6 text-center">
                 <p class="text-sm">E.ON Energy Dashboard</p>
-                <p style="color: #d4d4d4;" class="text-xs mt-2">Unofficial tool - Not affiliated with E.ON Next</p>
-                <div style="color: #d4d4d4;" class="mt-4 text-xs space-y-1">
+                <p style="color: #737373;" class="text-xs mt-2">Unofficial tool - Not affiliated with E.ON Next</p>
+                <div style="color: #737373;" class="mt-4 text-xs space-y-1">
                     <p>
-                        <a href="https://github.com/tomdyson/eonapi" target="_blank" rel="noopener noreferrer" class="hover:opacity-80 underline">Open Source Project</a>
+                        <a href="https://github.com/tomdyson/eonapi" target="_blank" rel="noopener noreferrer" style="color: #1a1a1a;" class="hover:opacity-60 underline">Open Source Project</a>
                         - Your credentials are passed directly to the E.ON API and are not stored by this service.
                     </p>
-                    <p>For maximum privacy, you can <a href="https://github.com/tomdyson/eonapi#deployment" target="_blank" rel="noopener noreferrer" class="hover:opacity-80 underline">self-host this application</a>.</p>
+                    <p>For maximum privacy, you can <a href="https://github.com/tomdyson/eonapi#deployment" target="_blank" rel="noopener noreferrer" style="color: #1a1a1a;" class="hover:opacity-60 underline">self-host this application</a>.</p>
                 </div>
             </div>
         </footer>
