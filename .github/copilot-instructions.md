@@ -8,6 +8,7 @@ eonapi is a Python CLI tool and web interface for retrieving and analyzing elect
 
 - **CLI Application**: Built with Click for command-line interface
 - **API Client**: Async HTTP client using httpx for GraphQL API communication
+- **Database Module**: SQLite storage for incremental consumption data updates
 - **Web UI**: Optional FastAPI server with Vue.js frontend (requires `ui` extras)
 - **Package Manager**: Uses `uv` for dependency management and development
 
@@ -25,8 +26,10 @@ eonapi is a Python CLI tool and web interface for retrieving and analyzing elect
 
 - `eonapi/api.py`: API client for E.ON Next GraphQL API
 - `eonapi/cli.py`: Click-based CLI commands (export, stats, ui)
+- `eonapi/database.py`: SQLite database operations for consumption data storage
 - `eonapi/server.py`: FastAPI server for web UI
 - `eonapi/__init__.py`: Version string and package exports
+- `tests/`: Test suite with pytest (test_database.py, test_cli_store.py)
 
 ### Naming Conventions
 
@@ -53,6 +56,14 @@ uv run eonapi stats
 uv run eonapi ui
 ```
 
+### Running Tests
+
+```bash
+uv run pytest
+uv run pytest tests/test_database.py  # Run specific test file
+uv run pytest -v  # Verbose output
+```
+
 ### Building the Package
 
 ```bash
@@ -65,6 +76,7 @@ uv build
 
 - **click**: CLI framework (≥8.0.0)
 - **httpx**: Async HTTP client (≥0.23.0)
+- **python-dateutil**: Robust ISO 8601 date parsing (≥2.8.0)
 
 ### Optional Dependencies (UI)
 
@@ -75,6 +87,7 @@ uv build
 
 - **build**: Package building (≥1.3.0)
 - **twine**: PyPI publishing (≥6.2.0)
+- **pytest**: Testing framework (≥7.0.0)
 
 ## Authentication and Security
 
@@ -112,6 +125,39 @@ uv build
 - Use ISO 8601 format with timezone information
 - E.ON API uses timezone-aware timestamps (UTC, BST)
 - Default date range: last 30 days from current date
+- Use `dateutil.parser.isoparse()` for parsing ISO 8601 timestamps (more robust than manual parsing)
+
+## Database Storage
+
+### SQLite Database Module
+
+- `ConsumptionDatabase` class in `eonapi/database.py`
+- Stores consumption data with automatic duplicate detection
+- Tracks latest interval per meter for incremental updates
+- Schema: `meter_serial`, `meter_type`, `interval_start`, `interval_end`, `consumption_kwh`, `created_at`
+- Unique constraint on `(meter_serial, interval_start)` prevents duplicates
+
+### Database Patterns
+
+```python
+from eonapi.database import ConsumptionDatabase
+
+# Initialize database
+db = ConsumptionDatabase("./data.db")
+
+# Get latest interval for incremental updates
+latest = db.get_latest_interval("METER123")
+
+# Store records (returns inserted count and skipped count)
+inserted, skipped = db.store_records(
+    records,
+    meter_serial="METER123",
+    meter_type="electricity"
+)
+
+# Get record count
+total = db.get_record_count("METER123")
+```
 
 ## CLI Commands
 
@@ -123,12 +169,15 @@ uv build
 @click.option('--password', '-p', help='E.ON Next password')
 @click.option('--days', '-d', default=30, help='Number of days')
 @click.option('--meter', '-m', help='Meter serial number')
+@click.option('--store', is_flag=True, help='Store in SQLite database')
+@click.option('--db', default='./eon-data.db', help='Database path')
 ```
 
 ### Output Conventions
 
 - **Success Messages**: Write to stderr
-- **Data Output**: Write CSV to stdout (for `export` command)
+- **Data Output**: Write CSV to stdout (for `export` command without --store)
+- **Database Mode**: Write status updates to stderr (for `export --store`)
 - **Progress**: Write to stderr with clear status updates
 - **Errors**: Raise `click.ClickException` with helpful messages
 
@@ -150,12 +199,87 @@ uv build
 
 ## Testing
 
-**Note**: This project currently has no automated test suite. When adding tests:
+### Test Suite
 
-- Use `pytest` as the testing framework
-- Test CLI commands with Click's testing utilities
-- Mock httpx calls for API client tests
-- Test both environment variable and CLI argument authentication paths
+The project uses `pytest` for automated testing. Tests are located in the `tests/` directory:
+
+- `tests/test_database.py`: Unit tests for the database module
+- `tests/test_cli_store.py`: Integration tests for CLI --store functionality
+
+### Running Tests
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with verbose output
+uv run pytest -v
+
+# Run specific test file
+uv run pytest tests/test_database.py
+
+# Run specific test
+uv run pytest tests/test_database.py::TestConsumptionDatabase::test_store_records
+```
+
+### Testing Patterns
+
+#### Fixtures
+
+Use pytest fixtures for test setup and teardown:
+
+```python
+@pytest.fixture
+def temp_db():
+    """Create a temporary database for testing."""
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    yield path
+    # Cleanup
+    if os.path.exists(path):
+        os.unlink(path)
+```
+
+#### Mocking Async API
+
+Use `unittest.mock.AsyncMock` for mocking async API calls:
+
+```python
+from unittest.mock import AsyncMock, patch
+
+@pytest.fixture
+def mock_api():
+    """Mock the EonNextAPI."""
+    with patch("eonapi.cli.EonNextAPI") as mock_api_class:
+        mock_api_instance = AsyncMock()
+        mock_api_class.return_value = mock_api_instance
+        
+        mock_api_instance.login.return_value = True
+        mock_api_instance.get_account_numbers.return_value = ["ACC123"]
+        
+        yield mock_api_instance
+```
+
+#### CLI Testing
+
+Use Click's `CliRunner` for testing CLI commands:
+
+```python
+from click.testing import CliRunner
+from eonapi.cli import cli
+
+runner = CliRunner()
+result = runner.invoke(cli, ['export', '--store', '--db', db_path])
+assert result.exit_code == 0
+```
+
+### Test Guidelines
+
+- Use temporary files/databases for tests (cleanup in fixtures)
+- Mock external API calls to avoid network dependencies
+- Test both success and failure scenarios
+- Verify database state changes in integration tests
+- Check exit codes and output messages for CLI tests
 
 ## Release Process
 
@@ -218,7 +342,10 @@ interval_start,interval_end,consumption_kwh
 - **Meter Types**: Support both electricity and gas meters
 - **Progress Feedback**: Always provide user feedback for long-running operations
 - **Timezone Handling**: Preserve timezone information from API responses
+- **Date Parsing**: Use `dateutil.parser.isoparse()` for robust ISO 8601 parsing
 - **Error Messages**: Be specific about authentication, API, and data retrieval errors
+- **Incremental Updates**: When using `--store`, check database for latest timestamp and only fetch new data
+- **Database Storage**: SQLite database with automatic duplicate prevention via unique constraints
 
 ## Documentation
 
@@ -235,3 +362,5 @@ interval_start,interval_end,consumption_kwh
 - UI dependencies are optional extras
 - Follow existing code patterns and style
 - Update README for user-facing changes
+- Write tests for new features (see `tests/` directory for patterns)
+- Run `pytest` before submitting changes to ensure tests pass
