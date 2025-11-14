@@ -48,14 +48,43 @@ async def root():
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0/dist/apexcharts.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            color: #4A443C;
+            background-color: #FBF9F6;
+            background-image: repeating-linear-gradient(
+                -45deg,
+                #F5F1EB,
+                #F5F1EB 10px,
+                transparent 10px,
+                transparent 20px
+            );
+            background-attachment: fixed;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Gowun Batang', serif;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4A443C !important;
+            box-shadow: 0 0 0 2px rgba(74, 68, 60, 0.1) !important;
+        }
+        button:disabled {
+            opacity: 0.5 !important;
+        }
+    </style>
 </head>
-<body class="bg-gray-50">
+<body>
     <div id="app" class="min-h-screen">
         <!-- Header -->
-        <header class="bg-blue-600 text-white shadow-lg">
-            <div class="container mx-auto px-4 py-6">
-                <h1 class="text-3xl font-bold">⚡ E.ON API Dashboard</h1>
-                <p class="text-blue-100 mt-2">Energy Consumption Analysis</p>
+        <header style="background-color: #4A443C; color: #FBF9F6;">
+            <div class="container mx-auto px-4 py-8">
+                <h1 class="text-3xl font-bold">E.ON Energy Dashboard</h1>
+                <p style="color: #D4CEC4;" class="mt-2">Consumption Analysis</p>
             </div>
         </header>
 
@@ -63,59 +92,63 @@ async def root():
         <main class="container mx-auto px-4 py-8">
             <!-- Login Form -->
             <div v-if="!isAuthenticated" class="max-w-md mx-auto">
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-bold mb-6 text-gray-800">Login to E.ON Next</h2>
+                <div style="background-color: #FFFFFF; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(74, 68, 60, 0.1);" class="p-8">
+                    <h2 class="text-2xl font-bold mb-6" style="color: #4A443C;">Login to E.ON Next</h2>
 
                     <form @submit.prevent="handleLogin">
                         <div class="mb-4">
-                            <label class="block text-gray-700 font-medium mb-2">Username (Email)</label>
+                            <label class="block font-medium mb-2" style="color: #4A443C;">Username (Email)</label>
                             <input
                                 v-model="credentials.username"
                                 type="email"
                                 required
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                style="border-color: #D4CEC4; color: #4A443C;"
+                                class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-offset-0"
                                 placeholder="your@email.com"
                             />
                         </div>
 
                         <div class="mb-4">
-                            <label class="block text-gray-700 font-medium mb-2">Password</label>
+                            <label class="block font-medium mb-2" style="color: #4A443C;">Password</label>
                             <input
                                 v-model="credentials.password"
                                 type="password"
                                 required
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                style="border-color: #D4CEC4; color: #4A443C;"
+                                class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-offset-0"
                                 placeholder="••••••••"
                             />
                         </div>
 
                         <div class="mb-6">
-                            <label class="block text-gray-700 font-medium mb-2">Days to Retrieve</label>
+                            <label class="block font-medium mb-2" style="color: #4A443C;">Days to Retrieve</label>
                             <input
                                 v-model.number="credentials.days"
                                 type="number"
                                 min="1"
                                 max="365"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                style="border-color: #D4CEC4; color: #4A443C;"
+                                class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-offset-0"
                             />
                         </div>
 
                         <button
                             type="submit"
                             :disabled="loading"
-                            class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-200"
+                            style="background-color: #4A443C; color: #FBF9F6;"
+                            class="w-full py-3 px-4 rounded hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
                         >
                             <span v-if="loading">Loading...</span>
                             <span v-else>Fetch Data</span>
                         </button>
                     </form>
 
-                    <div v-if="error" class="mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                    <div v-if="error" style="background-color: #FEE; border-color: #EBB; color: #822;" class="mt-4 border px-4 py-3 rounded">
                         {{ error }}
                     </div>
 
-                    <div class="mt-4 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded text-sm">
-                        <p class="font-semibold">🔒 Privacy Note</p>
+                    <div style="background-color: #F5F1EB; border-color: #D4CEC4; color: #4A443C;" class="mt-6 border px-4 py-3 rounded text-sm">
+                        <p class="font-semibold">Privacy Note</p>
                         <p class="mt-1">Credentials and data are stored locally in your browser to avoid re-login on refresh. Click Logout to clear.</p>
                     </div>
                 </div>
@@ -125,65 +158,66 @@ async def root():
             <div v-else>
                 <!-- Stats Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h3 class="text-gray-500 text-sm font-medium">Total Consumption</h3>
-                        <p class="text-3xl font-bold text-blue-600 mt-2">{{ meterData.total_kwh.toFixed(2) }}</p>
-                        <p class="text-gray-600 text-sm mt-1">kWh</p>
+                    <div style="background-color: #FFFFFF; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(74, 68, 60, 0.1);" class="p-6">
+                        <h3 style="color: #8B857A;" class="text-sm font-medium">Total Consumption</h3>
+                        <p style="color: #4A443C;" class="text-3xl font-bold mt-2">{{ meterData.total_kwh.toFixed(2) }}</p>
+                        <p style="color: #8B857A;" class="text-sm mt-1">kWh</p>
                     </div>
 
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h3 class="text-gray-500 text-sm font-medium">Average Daily</h3>
-                        <p class="text-3xl font-bold text-green-600 mt-2">{{ meterData.avg_daily.toFixed(2) }}</p>
-                        <p class="text-gray-600 text-sm mt-1">kWh/day</p>
+                    <div style="background-color: #FFFFFF; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(74, 68, 60, 0.1);" class="p-6">
+                        <h3 style="color: #8B857A;" class="text-sm font-medium">Average Daily</h3>
+                        <p style="color: #4A443C;" class="text-3xl font-bold mt-2">{{ meterData.avg_daily.toFixed(2) }}</p>
+                        <p style="color: #8B857A;" class="text-sm mt-1">kWh/day</p>
                     </div>
 
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h3 class="text-gray-500 text-sm font-medium">Peak Usage</h3>
-                        <p class="text-3xl font-bold text-orange-600 mt-2">{{ meterData.peak_kwh.toFixed(2) }}</p>
-                        <p class="text-gray-600 text-sm mt-1">kWh</p>
+                    <div style="background-color: #FFFFFF; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(74, 68, 60, 0.1);" class="p-6">
+                        <h3 style="color: #8B857A;" class="text-sm font-medium">Peak Usage</h3>
+                        <p style="color: #4A443C;" class="text-3xl font-bold mt-2">{{ meterData.peak_kwh.toFixed(2) }}</p>
+                        <p style="color: #8B857A;" class="text-sm mt-1">kWh</p>
                     </div>
 
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h3 class="text-gray-500 text-sm font-medium">Meter Type</h3>
-                        <p class="text-2xl font-bold text-purple-600 mt-2 capitalize">{{ meterData.meter_type }}</p>
-                        <p class="text-gray-600 text-sm mt-1">{{ meterData.meter_serial }}</p>
+                    <div style="background-color: #FFFFFF; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(74, 68, 60, 0.1);" class="p-6">
+                        <h3 style="color: #8B857A;" class="text-sm font-medium">Meter Type</h3>
+                        <p style="color: #4A443C;" class="text-2xl font-bold mt-2 capitalize">{{ meterData.meter_type }}</p>
+                        <p style="color: #8B857A;" class="text-sm mt-1">{{ meterData.meter_serial }}</p>
                     </div>
                 </div>
 
                 <!-- Chart -->
-                <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <div style="background-color: #FFFFFF; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(74, 68, 60, 0.1);" class="p-6 mb-8">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold text-gray-800">
+                        <h3 style="color: #4A443C;" class="text-xl font-bold">
                             <span v-if="!selectedDay">Daily Consumption</span>
                             <span v-else>Half-hourly Consumption - {{ selectedDay }}</span>
                         </h3>
                         <button
                             v-if="selectedDay"
                             @click="backToDaily"
-                            class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-200 text-sm"
+                            style="background-color: #4A443C; color: #FBF9F6;"
+                            class="py-2 px-4 rounded hover:opacity-90 transition duration-200 text-sm"
                         >
-                            ← Back to Daily View
+                            Back to Daily View
                         </button>
                     </div>
-                    <p v-if="!selectedDay" class="text-gray-600 text-sm mb-4">Click on a bar to see half-hourly breakdown</p>
+                    <p v-if="!selectedDay" style="color: #8B857A;" class="text-sm mb-4">Click on a bar to see half-hourly breakdown</p>
                     <div id="mainChart"></div>
                 </div>
 
                 <!-- Peak Time Info -->
-                <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4">Peak Usage Details</h3>
+                <div style="background-color: #FFFFFF; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(74, 68, 60, 0.1);" class="p-6 mb-8">
+                    <h3 style="color: #4A443C;" class="text-xl font-bold mb-4">Peak Usage Details</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <p class="text-gray-600">Peak Time</p>
-                            <p class="font-semibold text-lg">{{ formatDateTime(meterData.peak_time) }}</p>
+                            <p style="color: #8B857A;">Peak Time</p>
+                            <p style="color: #4A443C;" class="font-semibold text-lg">{{ formatDateTime(meterData.peak_time) }}</p>
                         </div>
                         <div>
-                            <p class="text-gray-600">Date Range</p>
-                            <p class="font-semibold text-lg">{{ formatDate(meterData.start_date) }} - {{ formatDate(meterData.end_date) }}</p>
+                            <p style="color: #8B857A;">Date Range</p>
+                            <p style="color: #4A443C;" class="font-semibold text-lg">{{ formatDate(meterData.start_date) }} - {{ formatDate(meterData.end_date) }}</p>
                         </div>
                         <div>
-                            <p class="text-gray-600">Total Intervals</p>
-                            <p class="font-semibold text-lg">{{ meterData.consumption_data.length }}</p>
+                            <p style="color: #8B857A;">Total Intervals</p>
+                            <p style="color: #4A443C;" class="font-semibold text-lg">{{ meterData.consumption_data.length }}</p>
                         </div>
                     </div>
                 </div>
@@ -192,7 +226,8 @@ async def root():
                 <div class="text-center space-x-4">
                     <button
                         @click="refreshData"
-                        class="bg-blue-600 text-white py-2 px-6 rounded-lg hover:bg-blue-700 transition duration-200"
+                        style="background-color: #4A443C; color: #FBF9F6;"
+                        class="py-2 px-6 rounded hover:opacity-90 transition duration-200"
                         :disabled="loading"
                     >
                         <span v-if="loading">Refreshing...</span>
@@ -200,7 +235,8 @@ async def root():
                     </button>
                     <button
                         @click="logout"
-                        class="bg-gray-600 text-white py-2 px-6 rounded-lg hover:bg-gray-700 transition duration-200"
+                        style="background-color: #8B857A; color: #FBF9F6;"
+                        class="py-2 px-6 rounded hover:opacity-90 transition duration-200"
                     >
                         Logout
                     </button>
@@ -209,16 +245,16 @@ async def root():
         </main>
 
         <!-- Footer -->
-        <footer class="bg-gray-800 text-white mt-12">
+        <footer style="background-color: #4A443C; color: #FBF9F6;" class="mt-12">
             <div class="container mx-auto px-4 py-6 text-center">
-                <p class="text-sm">E.ON API - Energy Consumption Dashboard</p>
-                <p class="text-xs text-gray-400 mt-2">Unofficial tool - Not affiliated with E.ON Next</p>
-                <div class="mt-4 text-xs text-gray-400 space-y-1">
+                <p class="text-sm">E.ON Energy Dashboard</p>
+                <p style="color: #D4CEC4;" class="text-xs mt-2">Unofficial tool - Not affiliated with E.ON Next</p>
+                <div style="color: #D4CEC4;" class="mt-4 text-xs space-y-1">
                     <p>
-                        <a href="https://github.com/tomdyson/eonapi" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">Open Source Project</a>
+                        <a href="https://github.com/tomdyson/eonapi" target="_blank" rel="noopener noreferrer" style="color: #FBF9F6;" class="hover:opacity-80 underline">Open Source Project</a>
                         - Your credentials are passed directly to the E.ON API and are not stored by this service.
                     </p>
-                    <p>For maximum privacy, you can <a href="https://github.com/tomdyson/eonapi#deployment" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">self-host this application</a>.</p>
+                    <p>For maximum privacy, you can <a href="https://github.com/tomdyson/eonapi#deployment" target="_blank" rel="noopener noreferrer" style="color: #FBF9F6;" class="hover:opacity-80 underline">self-host this application</a>.</p>
                 </div>
             </div>
         </footer>
@@ -418,7 +454,7 @@ async def root():
                                 formatter: (val) => `${parseFloat(val).toFixed(2)} kWh`
                             }
                         },
-                        colors: ['#22c55e'],
+                        colors: ['#4A443C'],
                         fill: {
                             opacity: 0.8
                         }
@@ -511,7 +547,7 @@ async def root():
                                 formatter: (val) => `${parseFloat(val).toFixed(3)} kWh`
                             }
                         },
-                        colors: ['#3b82f6'],
+                        colors: ['#4A443C'],
                         fill: {
                             opacity: 0.8
                         }
