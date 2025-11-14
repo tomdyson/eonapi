@@ -239,7 +239,7 @@ class TestConsumptionDatabase:
             os.unlink(default_path)
 
         try:
-            db = ConsumptionDatabase()
+            ConsumptionDatabase()
             assert os.path.exists(default_path)
         finally:
             # Cleanup
