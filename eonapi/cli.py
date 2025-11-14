@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import click
+from dateutil.parser import isoparse
 
 from . import __version__
 from .api import EonNextAPI
@@ -389,7 +390,7 @@ async def fetch_data(
         latest_interval = database.get_latest_interval(selected_meter["serial"])
         if latest_interval:
             # Parse the latest interval and start from there
-            start_date = datetime.fromisoformat(latest_interval.replace("+00:00", ""))
+            start_date = isoparse(latest_interval)
             click.echo(
                 f"Found existing data up to {latest_interval}",
                 err=True
