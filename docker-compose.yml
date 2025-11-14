@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  eonapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eonapi
+    ports:
+      - "8000:8000"
+    environment:
+      # IMPORTANT: Set these in a .env file or pass via command line
+      # DO NOT commit credentials to version control
+      - EON_USERNAME=${EON_USERNAME}
+      - EON_PASSWORD=${EON_PASSWORD}
+
+      # Optional configuration
+      - STATS_SCHEDULE=${STATS_SCHEDULE:-0 */6 * * *}  # Every 6 hours by default
+      - STATS_DAYS=${STATS_DAYS:-30}                   # Last 30 days by default
+      - WEB_HOST=0.0.0.0
+      - WEB_PORT=8000
+
+    restart: unless-stopped
+
+    # Optional: persist logs
+    volumes:
+      - stats-logs:/var/log
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  stats-logs:
+    driver: local
