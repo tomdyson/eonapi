@@ -58,11 +58,12 @@ async def root():
             background-color: #FFFFFF;
             background-image: repeating-linear-gradient(
                 -45deg,
-                transparent,
-                transparent 35px,
-                #f5f5f5 35px,
-                #f5f5f5 36px
+                #f5f5f5 0,
+                #f5f5f5 1px,
+                transparent 0,
+                transparent 50%
             );
+            background-size: 10px 10px;
             background-attachment: fixed;
         }
         h1, h2, h3, h4, h5, h6 {
