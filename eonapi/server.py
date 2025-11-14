@@ -213,6 +213,13 @@ async def root():
             <div class="container mx-auto px-4 py-6 text-center">
                 <p class="text-sm">E.ON API - Energy Consumption Dashboard</p>
                 <p class="text-xs text-gray-400 mt-2">Unofficial tool - Not affiliated with E.ON Next</p>
+                <div class="mt-4 text-xs text-gray-400 space-y-1">
+                    <p>
+                        <a href="https://github.com/tomdyson/eonapi" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">Open Source Project</a>
+                        - Your credentials are passed directly to the E.ON API and are not stored by this service.
+                    </p>
+                    <p>For maximum privacy, you can <a href="https://github.com/tomdyson/eonapi#deployment" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">self-host this application</a>.</p>
+                </div>
             </div>
         </footer>
     </div>
