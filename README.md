@@ -11,9 +11,10 @@ A Python CLI tool for retrieving and analyzing electricity/gas consumption data 
 - **Automatic Pagination**: Fetches all available data for your requested time period
 - **30-minute intervals**: Retrieves half-hourly consumption data
 - **Multiple Commands**:
-  - `export`: Export raw data to CSV
+  - `export`: Export raw data to CSV or store in SQLite database
   - `stats`: Display consumption statistics and analysis
   - `ui`: Interactive web UI with charts and visualizations
+- **Database Storage**: SQLite storage with automatic incremental updates
 - **Multiple meter support**: Auto-selects single meter, prompts for selection with multiple
 - **Flexible authentication**: Environment variables (recommended) or command-line arguments
 - **Progress feedback**: Shows pagination progress while fetching large datasets
@@ -74,11 +75,67 @@ eonapi stats
 eonapi stats --days 7
 ```
 
+## Database Storage
+
+The `--store` option enables SQLite database storage for your consumption data, with automatic incremental updates.
+
+### Features
+
+- **Incremental Updates**: Only fetches new data since the last run, saving time and API calls
+- **Automatic Detection**: Checks the latest timestamp in your database and fetches only newer records
+- **Duplicate Handling**: Safely skips duplicate records if they already exist
+- **Multiple Meters**: Supports storing data from multiple meters in the same database
+- **Local Storage**: All data stored locally in a single SQLite database file
+
+### Usage
+
+```bash
+# First run: fetches last 30 days (default)
+eonapi export --store
+
+# Subsequent runs: automatically fetches only new data
+eonapi export --store
+
+# Use custom database location
+eonapi export --store --db /path/to/my-data.db
+
+# Specify initial days on first run
+eonapi export --store --days 90
+```
+
+### Example Session
+
+```bash
+$ eonapi export --store
+Using database: ./eon-data.db
+Authenticating...
+Authentication successful!
+...
+No existing data found. Fetching last 30 days...
+Fetching electricity consumption data from 2025-10-15 to 2025-11-14...
+Fetching page 1... (0 records so far)
+...
+Database updated: 1440 new records inserted, 0 duplicates skipped.
+Total records in database for this meter: 1440
+
+$ eonapi export --store
+Using database: ./eon-data.db
+Authenticating...
+Authentication successful!
+...
+Found existing data up to 2025-11-14T23:30:00+00:00
+Fetching incremental data from 2025-11-14 23:30:00...
+Fetching electricity consumption data from 2025-11-14 to 2025-11-14...
+Fetching page 1... (0 records so far)
+Database updated: 48 new records inserted, 0 duplicates skipped.
+Total records in database for this meter: 1488
+```
+
 ## Commands
 
 ### `eonapi export`
 
-Export consumption data to CSV format.
+Export consumption data to CSV format or store in SQLite database.
 
 **Options:**
 - `--username`, `-u`: E.ON Next account username (email)
@@ -86,14 +143,25 @@ Export consumption data to CSV format.
 - `--days`, `-d`: Number of days to retrieve (default: 30)
 - `--meter`, `-m`: Meter serial number (if you have multiple)
 - `--output`, `-o`: Output file path (default: stdout)
+- `--store`: Store data in SQLite database for incremental updates
+- `--db`: Path to SQLite database file (default: ./eon-data.db)
 
 **Examples:**
 ```bash
-# Basic export
+# Basic export to CSV
 eonapi export > data.csv
 
-# Last 7 days
+# Last 7 days to file
 eonapi export --days 7 --output weekly.csv
+
+# Store in database (incremental updates)
+eonapi export --store
+
+# Store in custom database location
+eonapi export --store --db /path/to/my-data.db
+
+# First run: fetches last 30 days
+# Subsequent runs: only fetch new data since last update
 
 # Specific meter
 eonapi export --meter 12345678 --days 30 > meter1.csv
