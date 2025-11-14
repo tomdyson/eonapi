@@ -1,54 +1,36 @@
 # EON API - Docker Deployment Guide
 
-This guide covers deploying the EON API application with both the web UI and scheduled stats command using Docker.
+This guide covers deploying the EON API web UI using Docker.
 
-## Architecture
+## What Gets Deployed
 
-The deployment includes:
 - **Web UI**: FastAPI/Uvicorn server running on port 8000
-- **Scheduled Stats**: Cron job that runs the `eonapi stats` command periodically (default: every 6 hours)
-- **Single Container**: Both services run in the same container for simplicity
+- **No credentials required**: Users enter their E.ON Next credentials in the browser (stored in localStorage)
 
 ## Prerequisites
 
-- Docker and Docker Compose installed
-- E.ON Next account credentials
+- Docker (and optionally Docker Compose)
 - (For Fly.io) Fly CLI installed: `curl -L https://fly.io/install.sh | sh`
 
 ## Local Development with Docker Compose
 
-### 1. Create Environment File
-
-Create a `.env` file in the project root (never commit this file):
+### 1. Build and Run
 
 ```bash
-EON_USERNAME=your@email.com
-EON_PASSWORD=your_password
-STATS_SCHEDULE=0 */6 * * *  # Every 6 hours (optional)
-STATS_DAYS=30               # Last 30 days (optional)
-```
-
-### 2. Build and Run
-
-```bash
-# Build the image
-docker-compose build
-
 # Start the service
 docker-compose up -d
 
 # View logs
 docker-compose logs -f
-
-# View stats logs specifically
-docker-compose exec eonapi tail -f /var/log/eonapi-stats.log
 ```
 
-### 3. Access the UI
+### 2. Access the UI
 
 Open your browser to: http://localhost:8000
 
-### 4. Stop the Service
+Enter your E.ON Next credentials in the web interface.
+
+### 3. Stop the Service
 
 ```bash
 docker-compose down
@@ -62,84 +44,48 @@ docker-compose down
 curl -L https://fly.io/install.sh | sh
 ```
 
-### 2. Login to Fly
+### 2. Login and Deploy
 
 ```bash
+# Login to Fly
 fly auth login
-```
 
-### 3. Create and Configure App
+# Launch the app (follow the prompts)
+fly launch
 
-```bash
-# Initialize the app (if not already done)
-fly launch --no-deploy
-
-# Set your E.ON credentials as secrets
-fly secrets set EON_USERNAME=your@email.com
-fly secrets set EON_PASSWORD=your_password
-
-# Optional: customize the schedule
-fly secrets set STATS_SCHEDULE="0 */6 * * *"
-fly secrets set STATS_DAYS=30
-```
-
-### 4. Deploy
-
-```bash
+# Deploy
 fly deploy
 ```
 
-### 5. Monitor
+### 3. Access Your App
 
 ```bash
+# Open in browser
+fly open
+
 # View logs
 fly logs
 
-# View specific stats logs
-fly ssh console -C "tail -f /var/log/eonapi-stats.log"
-
-# Check app status
+# Check status
 fly status
-
-# Open the app in browser
-fly open
 ```
 
-### 6. Scale (if needed)
-
-```bash
-# Scale to more memory if needed
-fly scale memory 512
-
-# Keep at least 1 machine running
-fly scale count 1
-```
+The app will auto-scale: it spins down when not in use and automatically starts when accessed, making it very cost-effective.
 
 ## Deployment to Coolify
 
 ### 1. Add New Application
 
 1. Go to your Coolify dashboard
-2. Click "New Resource" → "Docker Compose"
-3. Paste the contents of `docker-compose.yml`
+2. Click "New Resource" → "Dockerfile"
+3. Connect your Git repository or upload the project
 
-### 2. Set Environment Variables
-
-In Coolify's environment variable section, add:
-
-```
-EON_USERNAME=your@email.com
-EON_PASSWORD=your_password
-STATS_SCHEDULE=0 */6 * * *
-STATS_DAYS=30
-```
-
-### 3. Configure Port
+### 2. Configure
 
 - Set internal port: `8000`
 - Enable HTTPS (Coolify handles this automatically)
 
-### 4. Deploy
+### 3. Deploy
 
 Click "Deploy" and Coolify will:
 - Build the Docker image
@@ -147,117 +93,36 @@ Click "Deploy" and Coolify will:
 - Set up SSL/TLS
 - Provide you with a URL
 
-### 5. View Logs
-
-Use Coolify's built-in log viewer or SSH into the container:
-
-```bash
-docker exec -it <container_id> tail -f /var/log/eonapi-stats.log
-```
-
 ## Alternative: Generic Docker Deployment
 
-For any Docker-compatible hosting (DigitalOcean, AWS ECS, etc.):
+For any Docker-compatible hosting (DigitalOcean, AWS ECS, Railway, Render, etc.):
 
-### 1. Build the Image
+### Build and Run
 
 ```bash
+# Build the image
 docker build -t eonapi:latest .
-```
 
-### 2. Run the Container
-
-```bash
+# Run the container
 docker run -d \
   --name eonapi \
   -p 8000:8000 \
-  -e EON_USERNAME=your@email.com \
-  -e EON_PASSWORD=your_password \
-  -e STATS_SCHEDULE="0 */6 * * *" \
-  -e STATS_DAYS=30 \
   --restart unless-stopped \
   eonapi:latest
 ```
 
-### 3. View Logs
+### View Logs
 
 ```bash
-# Web UI logs
 docker logs -f eonapi
-
-# Stats logs
-docker exec eonapi tail -f /var/log/eonapi-stats.log
 ```
 
-## Configuration Options
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `EON_USERNAME` | *required* | Your E.ON Next account email |
-| `EON_PASSWORD` | *required* | Your E.ON Next account password |
-| `STATS_SCHEDULE` | `0 */6 * * *` | Cron schedule for stats command |
-| `STATS_DAYS` | `30` | Number of days of data to analyze |
-| `WEB_HOST` | `0.0.0.0` | Web UI host address |
-| `WEB_PORT` | `8000` | Web UI port |
-
-### Cron Schedule Examples
-
-The `STATS_SCHEDULE` uses standard cron syntax:
-
-```
-# Every hour
-0 * * * *
-
-# Every 6 hours (default)
-0 */6 * * *
-
-# Every day at midnight
-0 0 * * *
-
-# Every day at 6 AM
-0 6 * * *
-
-# Every Monday at 9 AM
-0 9 * * 1
-```
-
-## Monitoring and Maintenance
-
-### Check Stats Execution
-
-```bash
-# For Docker Compose
-docker-compose exec eonapi cat /var/log/eonapi-stats.log
-
-# For Fly.io
-fly ssh console -C "cat /var/log/eonapi-stats.log"
-
-# For standalone Docker
-docker exec eonapi cat /var/log/eonapi-stats.log
-```
-
-### Restart the Service
-
-```bash
-# Docker Compose
-docker-compose restart
-
-# Fly.io
-fly apps restart
-
-# Standalone Docker
-docker restart eonapi
-```
-
-### Update the Application
+## Updating the Application
 
 ```bash
 # Docker Compose
 git pull
-docker-compose build
-docker-compose up -d
+docker-compose up -d --build
 
 # Fly.io
 git pull
@@ -266,45 +131,18 @@ fly deploy
 # Standalone Docker
 git pull
 docker build -t eonapi:latest .
-docker stop eonapi
-docker rm eonapi
-# Then run the docker run command again
+docker stop eonapi && docker rm eonapi
+docker run -d --name eonapi -p 8000:8000 --restart unless-stopped eonapi:latest
 ```
-
-## Security Considerations
-
-1. **Never commit credentials**: Always use environment variables or secrets management
-2. **Use HTTPS**: Fly.io and Coolify provide this automatically; for other deployments, use a reverse proxy with SSL
-3. **Restrict access**: Consider adding authentication or IP whitelisting for the web UI
-4. **Keep updated**: Regularly update the base image and dependencies
 
 ## Troubleshooting
 
 ### Container exits immediately
 
-Check the logs for missing environment variables:
+Check the logs:
 ```bash
 docker logs eonapi
 ```
-
-Make sure `EON_USERNAME` and `EON_PASSWORD` are set.
-
-### Stats not running
-
-1. Check cron is running:
-   ```bash
-   docker exec eonapi ps aux | grep cron
-   ```
-
-2. Check the cron schedule:
-   ```bash
-   docker exec eonapi crontab -l
-   ```
-
-3. View stats logs:
-   ```bash
-   docker exec eonapi cat /var/log/eonapi-stats.log
-   ```
 
 ### Web UI not accessible
 
@@ -318,39 +156,132 @@ Make sure `EON_USERNAME` and `EON_PASSWORD` are set.
    docker port eonapi
    ```
 
-3. Check web server logs:
+3. Check logs:
    ```bash
    docker logs eonapi
    ```
 
-### Authentication failures
+### Can't log in with E.ON credentials
 
-Verify your E.ON credentials:
-```bash
-docker exec eonapi env | grep EON_
-```
-
-If credentials look correct, try logging into the E.ON Next website to ensure your account is active.
+The web UI stores credentials in your browser's localStorage. Try:
+1. Clear your browser cache/localStorage
+2. Verify your credentials work on the E.ON Next website
+3. Check browser console for errors (F12 → Console tab)
 
 ## Cost Considerations
 
 ### Fly.io
-- Free tier: 3 shared-cpu-1x VMs with 256MB RAM (sufficient for this app)
-- This app should run comfortably on the free tier
+- Free tier includes 3 shared-cpu VMs with 256MB RAM
+- With auto-stop enabled (default), this app runs comfortably on the free tier
+- Only runs when accessed, then auto-stops after inactivity
 
 ### Coolify
 - Self-hosted, so only costs are for your server
-- Minimum 1GB RAM server recommended
+- Lightweight app - 512MB RAM is sufficient
 
-### DigitalOcean
-- $4/month droplet (512MB RAM) should be sufficient
-- $6/month for 1GB RAM recommended for smoother operation
+### Other Providers
+- Railway: Free tier available with 500 hours/month
+- Render: Free tier available (spins down after 15 min inactivity)
+- DigitalOcean: $4-6/month droplet
+
+## Optional: Scheduled Stats Command
+
+If you want to run the `eonapi stats` command on a schedule (e.g., to monitor consumption automatically), you have a few options:
+
+### Option 1: Host Machine Cron (Recommended)
+
+If you're running Docker on a server you control, set up a cron job on the host:
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add a job to run stats every 6 hours
+0 */6 * * * docker exec eonapi eonapi stats --username "your@email.com" --password "yourpassword" --days 30 >> /var/log/eonapi-stats.log 2>&1
+```
+
+### Option 2: GitHub Actions
+
+Create a scheduled workflow that runs the stats command:
+
+```yaml
+# .github/workflows/stats.yml
+name: Daily Stats
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - run: pip install eonapi
+      - run: eonapi stats --username "${{ secrets.EON_USERNAME }}" --password "${{ secrets.EON_PASSWORD }}" --days 30
+```
+
+Set `EON_USERNAME` and `EON_PASSWORD` as repository secrets.
+
+### Option 3: Cloud Scheduler
+
+Use a cloud-based scheduler service:
+
+- **AWS EventBridge + Lambda**: Trigger a Lambda function to run stats
+- **Google Cloud Scheduler**: Schedule a Cloud Run job
+- **Render Cron Jobs**: If hosting on Render, use their built-in cron feature
+
+### Option 4: Separate Container with Cron
+
+Build a separate lightweight container that runs cron:
+
+```dockerfile
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y cron && rm -rf /var/lib/apt/lists/*
+RUN pip install eonapi
+
+# Create cron job
+RUN echo "0 */6 * * * eonapi stats --username \$EON_USERNAME --password \$EON_PASSWORD --days 30 >> /var/log/cron.log 2>&1" > /etc/cron.d/eonapi-stats
+RUN chmod 0644 /etc/cron.d/eonapi-stats
+RUN crontab /etc/cron.d/eonapi-stats
+
+CMD ["cron", "-f"]
+```
+
+Run it alongside your web UI with Docker Compose:
+
+```yaml
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+
+  stats:
+    build:
+      context: .
+      dockerfile: Dockerfile.cron
+    environment:
+      - EON_USERNAME=${EON_USERNAME}
+      - EON_PASSWORD=${EON_PASSWORD}
+```
+
+## Security Considerations
+
+1. **Credentials**: The web UI stores credentials in browser localStorage only - they never touch the server
+2. **HTTPS**: Always use HTTPS in production (Fly.io and Coolify provide this automatically)
+3. **Public access**: Consider adding authentication if deploying publicly, or use Fly.io's built-in IP restrictions
+4. **Updates**: Regularly update the Docker base image for security patches
 
 ## Support
 
-For issues specific to deployment, check:
+For deployment platform issues:
 - Fly.io docs: https://fly.io/docs/
 - Coolify docs: https://coolify.io/docs/
 - Docker docs: https://docs.docker.com/
 
-For issues with the EON API application itself, open an issue on the GitHub repository.
+For EON API application issues, open an issue on the GitHub repository.
