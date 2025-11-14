@@ -8,9 +8,11 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import click
+from dateutil.parser import isoparse
 
 from . import __version__
 from .api import EonNextAPI
+from .database import ConsumptionDatabase
 
 
 def get_credentials(username: Optional[str], password: Optional[str]) -> tuple[str, str]:
@@ -78,42 +80,94 @@ def cli(ctx):
     default='-',
     help="Output file path (default: stdout)"
 )
-def export(username: Optional[str], password: Optional[str], days: int, meter: Optional[str], output):
+@click.option(
+    "--store",
+    is_flag=True,
+    help="Store data in SQLite database for incremental updates"
+)
+@click.option(
+    "--db",
+    default="./eon-data.db",
+    help="Path to SQLite database file (default: ./eon-data.db)"
+)
+def export(
+    username: Optional[str],
+    password: Optional[str],
+    days: int,
+    meter: Optional[str],
+    output,
+    store: bool,
+    db: str
+):
     """
-    Export consumption data to CSV.
+    Export consumption data to CSV or store in SQLite database.
 
-    Retrieves electricity/gas consumption data from Eon Next API and outputs as CSV.
+    Retrieves electricity/gas consumption data from Eon Next API and outputs as CSV
+    or stores in a SQLite database for incremental updates.
 
-    Example:
+    Examples:
 
-        eonpy export --days 30 > data.csv
+        eonapi export --days 30 > data.csv
 
-        eonpy export --days 7 --output last_week.csv
+        eonapi export --days 7 --output last_week.csv
+
+        eonapi export --store --db ./my-data.db
+
+        eonapi export --store  # Uses default ./eon-data.db
     """
     try:
         # Get credentials
         final_username, final_password = get_credentials(username, password)
 
-        # Fetch data
+        # Initialize database if --store is used
+        if store:
+            click.echo(f"Using database: {db}", err=True)
+            database = ConsumptionDatabase(db)
+
+        # Fetch data with optional incremental update
         consumption_data, selected_meter = asyncio.run(
-            fetch_data(final_username, final_password, days, meter)
+            fetch_data(
+                final_username,
+                final_password,
+                days,
+                meter,
+                database if store else None
+            )
         )
 
-        # Output CSV
-        writer = csv.writer(output)
+        # Store in database if --store is used
+        if store:
+            inserted, skipped = database.store_records(
+                consumption_data,
+                selected_meter["serial"],
+                selected_meter["type"]
+            )
+            click.echo(
+                f"\nDatabase updated: {inserted} new records inserted, "
+                f"{skipped} duplicates skipped.",
+                err=True
+            )
+            total_records = database.get_record_count(selected_meter["serial"])
+            click.echo(
+                f"Total records in database for this meter: {total_records}",
+                err=True
+            )
+        else:
+            # Output CSV (original behavior)
+            writer = csv.writer(output)
 
-        # Write header
-        writer.writerow(["interval_start", "interval_end", "consumption_kwh"])
+            # Write header
+            writer.writerow(["interval_start", "interval_end", "consumption_kwh"])
 
-        # Write data rows
-        for record in consumption_data:
-            writer.writerow([
-                record.get("startAt", ""),
-                record.get("endAt", ""),
-                record.get("value", "")
-            ])
+            # Write data rows
+            for record in consumption_data:
+                writer.writerow([
+                    record.get("startAt", ""),
+                    record.get("endAt", ""),
+                    record.get("value", "")
+                ])
 
-        click.echo(f"\nSuccessfully exported {len(consumption_data)} records.", err=True)
+            click.echo(f"\nSuccessfully exported {len(consumption_data)} records.", err=True)
 
     except click.ClickException:
         raise
@@ -250,9 +304,18 @@ async def fetch_data(
     username: str,
     password: str,
     days: int,
-    meter_serial: Optional[str]
+    meter_serial: Optional[str],
+    database: Optional[ConsumptionDatabase] = None
 ):
-    """Fetch consumption data from Eon Next API."""
+    """Fetch consumption data from Eon Next API.
+
+    Args:
+        username: Eon Next username
+        password: Eon Next password
+        days: Number of days to fetch (used if no database or no existing data)
+        meter_serial: Optional meter serial number
+        database: Optional database for incremental updates
+    """
     api = EonNextAPI()
 
     # Authenticate
@@ -319,9 +382,33 @@ async def fetch_data(
             except click.Abort:
                 raise click.ClickException("Aborted by user.")
 
-    # Calculate date range (last N days)
+    # Calculate date range
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=days)
+
+    # Check if we should do incremental update
+    if database:
+        latest_interval = database.get_latest_interval(selected_meter["serial"])
+        if latest_interval:
+            # Parse the latest interval and start from there
+            start_date = isoparse(latest_interval)
+            click.echo(
+                f"Found existing data up to {latest_interval}",
+                err=True
+            )
+            click.echo(
+                f"Fetching incremental data from {start_date.strftime('%Y-%m-%d %H:%M:%S')}...",
+                err=True
+            )
+        else:
+            # No existing data, use the days parameter
+            start_date = end_date - timedelta(days=days)
+            click.echo(
+                f"No existing data found. Fetching last {days} days...",
+                err=True
+            )
+    else:
+        # Normal mode: fetch last N days
+        start_date = end_date - timedelta(days=days)
 
     click.echo(
         f"Fetching {selected_meter['type']} consumption data from "
