@@ -33,12 +33,7 @@ class ConsumptionDatabase:
                 )
             """)
 
-            # Create index for fast lookups
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_meter_interval
-                ON consumption(meter_serial, interval_start)
-            """)
-
+            # The UNIQUE constraint on (meter_serial, interval_start) already creates an index.
             conn.commit()
 
     def get_latest_interval(self, meter_serial: str) -> Optional[str]:
