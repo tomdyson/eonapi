@@ -1,6 +1,6 @@
 [project]
 name = "eonapi"
-version = "0.5.0"
+version = "0.5.1"
 description = "CLI tool for retrieving and analyzing electricity/gas consumption data from Eon Next API"
 readme = "README.md"
 requires-python = ">=3.9"
