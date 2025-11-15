@@ -192,14 +192,31 @@ async def root():
                             <span v-if="!selectedDay">Daily Consumption</span>
                             <span v-else>Half-hourly Consumption - {{ selectedDay }}</span>
                         </h3>
-                        <button
-                            v-if="selectedDay"
-                            @click="backToDaily"
-                            style="background-color: #1a1a1a; color: #FFFFFF;"
-                            class="py-2 px-4 rounded hover:opacity-90 transition duration-200 text-sm"
-                        >
-                            Back to Daily View
-                        </button>
+                        <div v-if="selectedDay" class="flex gap-2">
+                            <button
+                                v-if="hasPreviousDay()"
+                                @click="showPreviousDay"
+                                style="background-color: #737373; color: #FFFFFF;"
+                                class="py-2 px-4 rounded hover:opacity-90 transition duration-200 text-sm"
+                            >
+                                &larr; Previous Day
+                            </button>
+                            <button
+                                v-if="hasNextDay()"
+                                @click="showNextDay"
+                                style="background-color: #737373; color: #FFFFFF;"
+                                class="py-2 px-4 rounded hover:opacity-90 transition duration-200 text-sm"
+                            >
+                                Next Day &rarr;
+                            </button>
+                            <button
+                                @click="backToDaily"
+                                style="background-color: #1a1a1a; color: #FFFFFF;"
+                                class="py-2 px-4 rounded hover:opacity-90 transition duration-200 text-sm"
+                            >
+                                Back to Daily View
+                            </button>
+                        </div>
                     </div>
                     <p v-if="!selectedDay" style="color: #737373;" class="text-sm mb-4">Click on a bar to see half-hourly breakdown</p>
                     <div id="mainChart"></div>
@@ -279,7 +296,8 @@ async def root():
                     meterData: null,
                     mainChart: null,
                     selectedDay: null,
-                    dailyDataMap: {}
+                    dailyDataMap: {},
+                    sortedDates: []
                 };
             },
             async mounted() {
@@ -385,6 +403,11 @@ async def root():
                         }
                         this.dailyDataMap[date].total += parseFloat(d.value);
                         this.dailyDataMap[date].intervals.push(d);
+                    });
+
+                    // Create sorted array of dates for navigation
+                    this.sortedDates = Object.keys(this.dailyDataMap).sort((a, b) => {
+                        return new Date(a) - new Date(b);
                     });
 
                     await this.createDailyChart();
@@ -562,6 +585,32 @@ async def root():
                 async backToDaily() {
                     this.selectedDay = null;
                     await this.createDailyChart();
+                },
+
+                hasPreviousDay() {
+                    if (!this.selectedDay || this.sortedDates.length === 0) return false;
+                    const currentIndex = this.sortedDates.indexOf(this.selectedDay);
+                    return currentIndex > 0;
+                },
+
+                hasNextDay() {
+                    if (!this.selectedDay || this.sortedDates.length === 0) return false;
+                    const currentIndex = this.sortedDates.indexOf(this.selectedDay);
+                    return currentIndex < this.sortedDates.length - 1;
+                },
+
+                async showPreviousDay() {
+                    if (!this.hasPreviousDay()) return;
+                    const currentIndex = this.sortedDates.indexOf(this.selectedDay);
+                    const previousDate = this.sortedDates[currentIndex - 1];
+                    await this.showDayDetails(previousDate);
+                },
+
+                async showNextDay() {
+                    if (!this.hasNextDay()) return;
+                    const currentIndex = this.sortedDates.indexOf(this.selectedDay);
+                    const nextDate = this.sortedDates[currentIndex + 1];
+                    await this.showDayDetails(nextDate);
                 }
             }
         }).mount('#app');
